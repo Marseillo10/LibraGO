@@ -1,107 +1,105 @@
 import React, { useState } from "react";
-import { Clock, TrendingUp, BookOpen, Calendar, Award, Flame, Target, BarChart3, Filter } from "lucide-react";
+import { Clock, TrendingUp, BookOpen, Calendar, Award, Filter, BarChart3 } from "lucide-react";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ScrollArea } from "../ui/scroll-area";
 import { Progress } from "../ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { useBooks } from "../../context/BooksContext";
+import { ImageWithFallback } from "../figma/ImageWithFallback";
 
 const HistoryScreen = () => {
+  const { library, readingStats, readingLogs, unlockedAchievements } = useBooks();
   const [timeRange, setTimeRange] = useState("month");
 
-  // Mock data for reading history
-  const readingHistory = [
-    {
-      id: "1",
-      bookTitle: "Clean Code",
-      author: "Robert C. Martin",
-      coverColor: "bg-blue-500",
-      pagesRead: 464,
-      totalPages: 464,
-      completedDate: "2024-10-25",
-      readingTime: "12 jam 30 menit",
-      rating: 5,
-    },
-    {
-      id: "2",
-      bookTitle: "Design Patterns",
-      author: "Erich Gamma",
-      coverColor: "bg-purple-500",
-      pagesRead: 395,
-      totalPages: 395,
-      completedDate: "2024-10-15",
-      readingTime: "15 jam 20 menit",
-      rating: 4,
-    },
-    {
-      id: "3",
-      bookTitle: "The Pragmatic Programmer",
-      author: "Andrew Hunt",
-      coverColor: "bg-green-500",
-      pagesRead: 352,
-      totalPages: 352,
-      completedDate: "2024-10-08",
-      readingTime: "10 jam 45 menit",
-      rating: 5,
-    },
-  ];
+  // Derived History Data
+  const readingHistory = library
+    .filter(book => book.progress === 100)
+    .sort((a, b) => new Date(b.lastReadDate || 0).getTime() - new Date(a.lastReadDate || 0).getTime());
 
-  // Reading statistics
-  const stats = {
-    totalBooks: 28,
-    totalPages: 8420,
-    totalTime: "156 jam",
-    currentStreak: 12,
-    longestStreak: 45,
-    avgPagesPerDay: 42,
-    booksThisMonth: 3,
-    booksThisYear: 28,
+  // Weekly reading data (Derived from readingLogs)
+  const getWeeklyData = () => {
+    const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+    const today = new Date();
+    const data = [];
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      data.push({
+        day: days[d.getDay()],
+        pages: readingLogs[dateStr] || 0,
+        fullDate: dateStr
+      });
+    }
+    return data;
   };
 
-  // Weekly reading data
-  const weeklyData = [
-    { day: "Sen", pages: 45 },
-    { day: "Sel", pages: 62 },
-    { day: "Rab", pages: 38 },
-    { day: "Kam", pages: 55 },
-    { day: "Jum", pages: 72 },
-    { day: "Sab", pages: 48 },
-    { day: "Min", pages: 35 },
-  ];
+  const weeklyData = getWeeklyData();
 
-  // Monthly reading trend
-  const monthlyData = [
-    { month: "Mei", books: 2 },
-    { month: "Jun", books: 3 },
-    { month: "Jul", books: 2 },
-    { month: "Agu", books: 4 },
-    { month: "Sep", books: 3 },
-    { month: "Okt", books: 3 },
-  ];
+  // Monthly reading trend (Derived from readingLogs)
+  // Note: Ideally we'd aggregate logs by month, but for now we'll use completed books per month from stats
+  // or simulate it. Let's use a simple aggregation of books read.
+  const getMonthlyData = () => {
+    const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+    const today = new Date();
+    const data = [];
 
-  // Genre distribution
-  const genreData = [
-    { name: "Programming", value: 12, color: "#3B82F6" },
-    { name: "Design", value: 6, color: "#8B5CF6" },
-    { name: "Business", value: 5, color: "#10B981" },
-    { name: "Science", value: 5, color: "#F59E0B" },
-  ];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const monthIdx = d.getMonth();
+      const year = d.getFullYear();
+
+      // Count books finished in this month
+      const booksCount = library.filter(b => {
+        if (!b.lastReadDate || b.progress < 100) return false;
+        const readDate = new Date(b.lastReadDate);
+        return readDate.getMonth() === monthIdx && readDate.getFullYear() === year;
+      }).length;
+
+      data.push({
+        month: months[monthIdx],
+        books: booksCount
+      });
+    }
+    return data;
+  };
+
+  const monthlyData = getMonthlyData();
+
+  // Genre distribution (Derived from library)
+  const genreCounts = library.reduce((acc, book) => {
+    const genre = book.genre?.[0] || "Uncategorized";
+    acc[genre] = (acc[genre] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const genreData = Object.entries(genreCounts).map(([name, value], index) => ({
+    name,
+    value,
+    color: ["#3B82F6", "#8B5CF6", "#10B981", "#F59E0B", "#EF4444"][index % 5]
+  }));
 
   // Achievements
   const achievements = [
-    { id: 1, title: "Bookworm", description: "Baca 10 buku", icon: "🐛", unlocked: true },
-    { id: 2, title: "Speed Reader", description: "Selesaikan buku dalam 24 jam", icon: "⚡", unlocked: true },
-    { id: 3, title: "Night Owl", description: "Baca di malam hari 7 hari berturut", icon: "🦉", unlocked: true },
-    { id: 4, title: "Genre Explorer", description: "Baca 5 genre berbeda", icon: "🌍", unlocked: true },
-    { id: 5, title: "Consistent", description: "Reading streak 30 hari", icon: "🔥", unlocked: false },
-    { id: 6, title: "Century Club", description: "Baca 100 buku", icon: "💯", unlocked: false },
-  ];
+    { id: "bookworm", title: "Bookworm", description: "Baca 10 buku", icon: "🐛" },
+    { id: "speed_reader", title: "Speed Reader", description: "Selesaikan buku dalam 24 jam", icon: "⚡" }, // Logic not impl yet
+    { id: "night_owl", title: "Night Owl", description: "Baca di malam hari 7 hari berturut", icon: "🦉" }, // Logic not impl yet
+    { id: "genre_explorer", title: "Genre Explorer", description: "Baca 5 genre berbeda", icon: "🌍" }, // Logic not impl yet
+    { id: "consistent", title: "Consistent", description: "Reading streak 30 hari", icon: "🔥" },
+    { id: "century_club", title: "Century Club", description: "Baca 100 buku", icon: "💯" },
+    { id: "first_step", title: "First Step", description: "Mulai membaca buku pertama", icon: "👣" },
+    { id: "dedicated", title: "Dedicated", description: "Baca 50 halaman dalam sehari", icon: "💪" },
+  ].map(ach => ({
+    ...ach,
+    unlocked: unlockedAchievements.includes(ach.id)
+  }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
@@ -138,8 +136,8 @@ const HistoryScreen = () => {
               <BookOpen className="w-5 h-5" />
               <p className="text-sm opacity-90">Total Buku</p>
             </div>
-            <p className="text-3xl mb-1">{stats.totalBooks}</p>
-            <p className="text-xs opacity-75">{stats.booksThisMonth} bulan ini</p>
+            <p className="text-3xl mb-1">{readingStats.totalBooks}</p>
+            <p className="text-xs opacity-75">{readingStats.booksThisMonth} bulan ini</p>
           </Card>
 
           <Card className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
@@ -147,17 +145,17 @@ const HistoryScreen = () => {
               <TrendingUp className="w-5 h-5" />
               <p className="text-sm opacity-90">Total Halaman</p>
             </div>
-            <p className="text-3xl mb-1">{stats.totalPages.toLocaleString()}</p>
-            <p className="text-xs opacity-75">{stats.avgPagesPerDay} per hari</p>
+            <p className="text-3xl mb-1">{readingStats.totalPages.toLocaleString()}</p>
+            <p className="text-xs opacity-75">{readingStats.avgPagesPerDay} per hari</p>
           </Card>
 
           <Card className="p-4 bg-gradient-to-br from-green-500 to-green-600 text-white">
             <div className="flex items-center gap-2 mb-2">
-              <Flame className="w-5 h-5" />
+              <Award className="w-5 h-5" />
               <p className="text-sm opacity-90">Streak</p>
             </div>
-            <p className="text-3xl mb-1">{stats.currentStreak}</p>
-            <p className="text-xs opacity-75">Terpanjang: {stats.longestStreak} hari</p>
+            <p className="text-3xl mb-1">{readingStats.currentStreak}</p>
+            <p className="text-xs opacity-75">Terpanjang: {readingStats.longestStreak} hari</p>
           </Card>
 
           <Card className="p-4 bg-gradient-to-br from-amber-500 to-amber-600 text-white">
@@ -165,7 +163,7 @@ const HistoryScreen = () => {
               <Clock className="w-5 h-5" />
               <p className="text-sm opacity-90">Waktu Baca</p>
             </div>
-            <p className="text-3xl mb-1">{stats.totalTime.split(" ")[0]}</p>
+            <p className="text-3xl mb-1">{readingStats.totalTime.split(" ")[0]}</p>
             <p className="text-xs opacity-75">jam total</p>
           </Card>
         </div>
@@ -259,7 +257,7 @@ const HistoryScreen = () => {
                         </span>
                       </div>
                       <Progress
-                        value={(genre.value / stats.totalBooks) * 100}
+                        value={(genre.value / readingStats.totalBooks) * 100}
                         className="h-2"
                       />
                     </div>
@@ -275,39 +273,51 @@ const HistoryScreen = () => {
               <h3 className="text-gray-900 dark:text-white mb-4">Buku yang Telah Selesai</h3>
               <ScrollArea className="h-[500px]">
                 <div className="space-y-4">
-                  {readingHistory.map((book) => (
-                    <div
-                      key={book.id}
-                      className="flex gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      <div className={`w-16 h-24 ${book.coverColor} rounded-lg flex-shrink-0`} />
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-gray-900 dark:text-white mb-1">{book.bookTitle}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {book.author}
-                        </p>
-                        <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <BookOpen className="w-3 h-3" />
-                            {book.pagesRead} halaman
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {book.readingTime}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            {new Date(book.completedDate).toLocaleDateString("id-ID")}
-                          </span>
+                  {readingHistory.length === 0 ? (
+                    <p className="text-center text-gray-500 py-8">Belum ada buku yang selesai dibaca.</p>
+                  ) : (
+                    readingHistory.map((book) => (
+                      <div
+                        key={book.id}
+                        className="flex gap-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <div className="w-16 h-24 flex-shrink-0">
+                          <ImageWithFallback
+                            src={book.image}
+                            alt={book.title}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-gray-900 dark:text-white mb-1 truncate">{book.title}</h4>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2 truncate">
+                            {book.author}
+                          </p>
+                          <div className="flex flex-wrap gap-2 text-xs text-gray-500 dark:text-gray-500">
+                            <span className="flex items-center gap-1">
+                              <BookOpen className="w-3 h-3" />
+                              {book.pageCount} halaman
+                            </span>
+                            {book.lastReadDate && (
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {new Date(book.lastReadDate).toLocaleDateString("id-ID")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          {book.rating ? (
+                            Array.from({ length: Math.round(book.rating) }).map((_, i) => (
+                              <span key={i} className="text-yellow-500">★</span>
+                            ))
+                          ) : (
+                            <span className="text-gray-400 text-sm">Belum ada rating</span>
+                          )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {Array.from({ length: book.rating }).map((_, i) => (
-                          <span key={i} className="text-yellow-500">★</span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </ScrollArea>
             </Card>
@@ -319,11 +329,10 @@ const HistoryScreen = () => {
               {achievements.map((achievement) => (
                 <Card
                   key={achievement.id}
-                  className={`p-6 text-center transition-all ${
-                    achievement.unlocked
-                      ? "bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800"
-                      : "opacity-60 grayscale"
-                  }`}
+                  className={`p-6 text-center transition-all ${achievement.unlocked
+                    ? "bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-200 dark:border-blue-800"
+                    : "opacity-60 grayscale"
+                    }`}
                 >
                   <div className="text-5xl mb-3">{achievement.icon}</div>
                   <h4 className="text-gray-900 dark:text-white mb-2">

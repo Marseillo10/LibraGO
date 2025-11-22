@@ -24,6 +24,7 @@ import {
   ChevronRight,
   UserCircle,
   ChevronsDown,
+  LayoutDashboard,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
@@ -62,12 +63,12 @@ export function DesktopSidebar({
     const handleScroll = () => {
       if (scrollContainerRef.current) {
         const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-        
+
         // Hide indicator when user scrolls more than 50px
         if (scrollTop > 50) {
           setShowScrollIndicator(false);
         }
-        
+
         // Also hide if content doesn't need scrolling
         if (scrollHeight <= clientHeight + 50) {
           setShowScrollIndicator(false);
@@ -101,6 +102,7 @@ export function DesktopSidebar({
     { id: "goals", icon: Target, label: "Target & Tantangan" },
     { id: "downloads", icon: Download, label: "Download" },
     { id: "community", icon: Users, label: "Komunitas" },
+    { id: "publisher", icon: LayoutDashboard, label: "Publisher Dashboard" },
   ];
 
   const systemNavItems = [
@@ -111,7 +113,7 @@ export function DesktopSidebar({
 
   return (
     <TooltipProvider>
-      <div className={`fixed left-0 top-0 bottom-0 ${collapsed ? "w-20" : "w-64"} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300 z-40`}>
+      <div className={`fixed left-0 top-0 bottom-0 ${collapsed ? "w-20" : "w-64"} bg-blue-50 dark:bg-gray-900 border-r border-blue-100 dark:border-gray-800 flex flex-col transition-all duration-300 z-40`}>
         {/* Collapse Toggle Button */}
         <button
           onClick={() => onToggleCollapse(!collapsed)}
@@ -147,11 +149,10 @@ export function DesktopSidebar({
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} ${collapsed ? "px-3" : "px-4"} py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
+                  className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} ${collapsed ? "px-3" : "px-4"} py-3 rounded-lg transition-colors ${isActive
+                    ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -187,11 +188,10 @@ export function DesktopSidebar({
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} ${collapsed ? "px-3" : "px-4"} py-3 rounded-lg transition-colors relative ${
-                    isActive
-                      ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
+                  className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} ${collapsed ? "px-3" : "px-4"} py-3 rounded-lg transition-colors relative ${isActive
+                    ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
                 >
                   <div className="relative flex-shrink-0">
                     <Icon className="w-5 h-5" />
@@ -238,11 +238,10 @@ export function DesktopSidebar({
                 <button
                   key={item.id}
                   onClick={() => onNavigate(item.id)}
-                  className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} ${collapsed ? "px-3" : "px-4"} py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                      : "text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
-                  }`}
+                  className={`w-full flex items-center ${collapsed ? "justify-center" : "gap-3"} ${collapsed ? "px-3" : "px-4"} py-3 rounded-lg transition-colors ${isActive
+                    ? "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                    : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -278,16 +277,15 @@ export function DesktopSidebar({
               </div>
             </div>
           )}
-          
+
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex flex-col items-center gap-3">
                   <button
                     onClick={() => onNavigate("profile")}
-                    className={`rounded-full transition-all hover:ring-4 hover:ring-blue-400 hover:shadow-lg cursor-pointer group relative ${
-                      active === "profile" ? "ring-4 ring-blue-500 shadow-lg" : ""
-                    }`}
+                    className={`rounded-full transition-all hover:ring-4 hover:ring-blue-400 hover:shadow-lg cursor-pointer group relative ${active === "profile" ? "ring-4 ring-blue-500 shadow-lg" : ""
+                      }`}
                   >
                     <Avatar className="w-10 h-10 pointer-events-none group-hover:scale-110 transition-transform">
                       <AvatarFallback className="bg-blue-600 text-white group-hover:bg-blue-700 transition-colors">
@@ -323,11 +321,10 @@ export function DesktopSidebar({
             <>
               <button
                 onClick={() => onNavigate("profile")}
-                className={`group w-full flex items-center gap-3 mb-3 p-3 rounded-lg transition-all duration-200 cursor-pointer border-2 ${
-                  active === "profile"
-                    ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700 shadow-md"
-                    : "border-transparent hover:bg-gray-50 dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm"
-                }`}
+                className={`group w-full flex items-center gap-3 mb-3 p-3 rounded-lg transition-all duration-200 cursor-pointer border-2 ${active === "profile"
+                  ? "bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700 shadow-md"
+                  : "border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-blue-200 dark:hover:border-blue-800 hover:shadow-sm"
+                  }`}
               >
                 <Avatar className="pointer-events-none group-hover:scale-110 transition-transform">
                   <AvatarFallback className="bg-blue-600 text-white pointer-events-none group-hover:bg-blue-700 transition-colors">

@@ -15,6 +15,13 @@ export interface Book {
   isFavorite: boolean;
   pageCount: number;
   currentPage: number;
+  description?: string;
+  publisher?: string;
+  publishedDate?: string;
+  language?: string;
+  previewLink?: string;
+  image: string;
+  fullContent?: string;
 }
 
 export type SmartCollectionType =
@@ -41,48 +48,48 @@ export interface SmartCollection {
 
 // Smart Collection Definitions
 export const createSmartCollections = (books: Book[]): SmartCollection[] => {
-  return [
+  const collections: Omit<SmartCollection, 'count'>[] = [
     {
       id: "currently-reading",
       name: "Sedang Dibaca",
       description: "Buku yang sedang Anda baca",
       icon: "📖",
-      filter: (book) => book.progress > 0 && book.progress < 100,
+      filter: (book: Book) => book.progress > 0 && book.progress < 100,
     },
     {
       id: "almost-finished",
       name: "Hampir Selesai",
       description: "Buku dengan progress > 80%",
       icon: "🏁",
-      filter: (book) => book.progress >= 80 && book.progress < 100,
+      filter: (book: Book) => book.progress >= 80 && book.progress < 100,
     },
     {
       id: "not-started",
       name: "Belum Dibaca",
       description: "Buku yang belum dimulai",
       icon: "📚",
-      filter: (book) => book.progress === 0,
+      filter: (book: Book) => book.progress === 0,
     },
     {
       id: "finished",
       name: "Selesai Dibaca",
       description: "Buku yang sudah selesai",
       icon: "✅",
-      filter: (book) => book.progress === 100,
+      filter: (book: Book) => book.progress === 100,
     },
     {
       id: "favorites",
       name: "Favorit",
       description: "Buku favorit Anda",
       icon: "⭐",
-      filter: (book) => book.isFavorite,
+      filter: (book: Book) => book.isFavorite,
     },
     {
       id: "recent",
       name: "Baru Ditambahkan",
       description: "Ditambahkan dalam 7 hari terakhir",
       icon: "🆕",
-      filter: (book) => {
+      filter: (book: Book) => {
         const daysDiff =
           (Date.now() - book.addedDate.getTime()) / (1000 * 60 * 60 * 24);
         return daysDiff <= 7;
@@ -93,7 +100,7 @@ export const createSmartCollections = (books: Book[]): SmartCollection[] => {
       name: "Dibaca Bulan Ini",
       description: "Dibaca dalam bulan ini",
       icon: "📅",
-      filter: (book) => {
+      filter: (book: Book) => {
         if (!book.lastReadDate) return false;
         const now = new Date();
         return (
@@ -107,23 +114,25 @@ export const createSmartCollections = (books: Book[]): SmartCollection[] => {
       name: "Buku Panjang",
       description: "Lebih dari 400 halaman",
       icon: "📕",
-      filter: (book) => book.pageCount > 400,
+      filter: (book: Book) => book.pageCount > 400,
     },
     {
       id: "short-books",
       name: "Buku Pendek",
       description: "Kurang dari 200 halaman",
       icon: "📘",
-      filter: (book) => book.pageCount < 200,
+      filter: (book: Book) => book.pageCount < 200,
     },
     {
       id: "by-rating",
       name: "Rating Tinggi",
       description: "Rating 4 bintang atau lebih",
       icon: "🌟",
-      filter: (book) => (book.rating ?? 0) >= 4,
+      filter: (book: Book) => (book.rating ?? 0) >= 4,
     },
-  ].map((collection) => ({
+  ];
+
+  return collections.map((collection) => ({
     ...collection,
     count: books.filter(collection.filter).length,
   }));

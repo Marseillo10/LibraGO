@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Search, SlidersHorizontal, X, Star, Crown } from "lucide-react";
+import { Search, SlidersHorizontal, X, Star, Loader2 } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -15,109 +15,89 @@ import {
 import { Slider } from "../ui/slider";
 import { Checkbox } from "../ui/checkbox";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+import { useBooks } from "../../context/BooksContext";
+import { Book } from "../../utils/collections";
+import { toast } from "sonner";
 
 interface SearchScreenProps {
   onSelectBook: (bookId: string) => void;
+  darkMode?: boolean;
 }
 
-export function SearchScreen({ onSelectBook }: SearchScreenProps) {
+export function SearchScreen({ onSelectBook, darkMode = false }: SearchScreenProps) {
+  const { searchResults, isSearching, searchBooks } = useBooks();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
+
   // Advanced Filter States
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [pageRange, setPageRange] = useState([0, 10000]);
+  const [pageRange, setPageRange] = useState([0, 2000]);
   const [minRating, setMinRating] = useState(0);
   const [freeOnly, setFreeOnly] = useState(false);
   const [authorSearchQuery, setAuthorSearchQuery] = useState("");
 
-  const genres = ["Computer Science", "Programming", "Software Engineering", "Algorithms", "Data Structures"];
-  const subjects = ["Theory", "Practice", "Design Patterns", "Clean Code", "Refactoring"];
-  const languages = ["English", "Bahasa Indonesia", "Mandarin", "Spanyol", "Jepang"];
+  const genres = ["Computers", "Fiction", "Science", "Business", "History"];
+  const subjects = ["Programming", "Design", "Business", "Psychology", "Biography"];
+  const languages = ["en", "id"];
 
-  const searchResults = [
-    {
-      id: "1",
-      title: "Structure and Interpretation of Computer Programs",
-      author: "Harold Abelson, Gerald Jay Sussman",
-      genre: "Computer Science",
-      subject: "Theory",
-      pages: 350,
-      rating: 4.9,
-      language: "English",
-      isPremium: false,
-      image: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&h=300&fit=crop",
-    },
-    {
-      id: "2",
-      title: "Clean Code: A Handbook of Agile Software Craftsmanship",
-      author: "Robert C. Martin",
-      genre: "Software Engineering",
-      subject: "Clean Code",
-      pages: 464,
-      rating: 4.7,
-      language: "English",
-      isPremium: true,
-      image: "https://images.unsplash.com/photo-1532012197267-da84d127e765?w=400&h=300&fit=crop",
-    },
-    {
-      id: "3",
-      title: "Design Patterns: Elements of Reusable Object-Oriented Software",
-      author: "Erich Gamma",
-      genre: "Programming",
-      subject: "Design Patterns",
-      pages: 395,
-      rating: 4.8,
-      language: "English",
-      isPremium: true,
-      image: "https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=400&h=300&fit=crop",
-    },
-    {
-      id: "4",
-      title: "Refactoring: Improving the Design of Existing Code",
-      author: "Martin Fowler",
-      genre: "Software Engineering",
-      subject: "Refactoring",
-      pages: 418,
-      rating: 4.6,
-      language: "Bahasa Indonesia",
-      isPremium: false,
-      image: "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&h=300&fit=crop",
-    },
-  ];
+  // Trigger search when filters or query change (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery || authorSearchQuery || selectedGenres.length > 0 || selectedSubjects.length > 0) {
+        handleSearch();
+      }
+    }, 800);
 
-  const filteredResults = searchResults.filter((book) => {
-    const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         book.author.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesAuthor = authorSearchQuery === "" || book.author.toLowerCase().includes(authorSearchQuery.toLowerCase());
-    const matchesGenre = selectedGenres.length === 0 || selectedGenres.includes(book.genre);
-    const matchesSubject = selectedSubjects.length === 0 || selectedSubjects.includes(book.subject);
-    const matchesLanguage = selectedLanguages.length === 0 || selectedLanguages.includes(book.language);
-    const matchesPages = book.pages >= pageRange[0] && book.pages <= pageRange[1];
-    const matchesRating = book.rating >= minRating;
-    const matchesFree = !freeOnly || !book.isPremium;
-    
-    return matchesSearch && matchesAuthor && matchesGenre && matchesSubject && matchesLanguage && matchesPages && matchesRating && matchesFree;
+    return () => clearTimeout(timer);
+  }, [searchQuery, authorSearchQuery, selectedGenres, selectedSubjects]);
+
+  const handleSearch = () => {
+    // Construct complex query
+    let queryParts = [];
+
+    if (searchQuery) queryParts.push(searchQuery);
+    if (authorSearchQuery) queryParts.push(`inauthor:${authorSearchQuery}`);
+    if (selectedGenres.length > 0) queryParts.push(`subject:${selectedGenres.join('|')}`);
+    if (selectedSubjects.length > 0) queryParts.push(`subject:${selectedSubjects.join('|')}`);
+
+    const fullQuery = queryParts.join(' ');
+
+    if (fullQuery.trim()) {
+      searchBooks(fullQuery);
+    }
+  };
+
+  // Client-side filtering for properties not supported by simple API query
+  const filteredResults = searchResults.filter((book: Book) => {
+    // Language filter (if API returns language, but our Book interface might not have it mapped yet? 
+    // The current Book interface doesn't have language. We'll skip language filter for now or add it later)
+    // const matchesLanguage = selectedLanguages.length === 0 || selectedLanguages.includes(book.language);
+
+    const matchesPages = book.pageCount >= pageRange[0] && book.pageCount <= pageRange[1];
+    const matchesRating = (book.rating || 0) >= minRating;
+    // const matchesFree = !freeOnly || !book.isPremium; // We don't have isPremium in Book interface yet
+
+    return matchesPages && matchesRating;
   });
 
   const handleClearFilters = () => {
     setSelectedGenres([]);
     setSelectedSubjects([]);
     setSelectedLanguages([]);
-    setPageRange([0, 10000]);
+    setPageRange([0, 2000]);
     setMinRating(0);
     setFreeOnly(false);
     setAuthorSearchQuery("");
   };
 
-  const hasActiveFilters = authorSearchQuery !== "" || selectedGenres.length > 0 || 
-                          selectedSubjects.length > 0 || selectedLanguages.length > 0 || 
-                          pageRange[0] > 0 || pageRange[1] < 10000 || minRating > 0 || freeOnly;
+  const hasActiveFilters = authorSearchQuery !== "" || selectedGenres.length > 0 ||
+    selectedSubjects.length > 0 || selectedLanguages.length > 0 ||
+    pageRange[0] > 0 || pageRange[1] < 2000 || minRating > 0 || freeOnly;
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 pb-20 lg:pb-8">
+    <div className={`min-h-screen pb-20 lg:pb-8 transition-colors duration-300 ${darkMode ? "bg-transparent" : "bg-white"}`}>
       <div className="px-6 py-8 lg:px-12">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -132,10 +112,11 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                 placeholder="Cari buku, penulis, atau jurnal..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="pl-10 pr-4"
               />
             </div>
-            
+
             {/* Advanced Filter Button */}
             <Sheet open={isFilterOpen} onOpenChange={setIsFilterOpen}>
               <SheetTrigger asChild>
@@ -178,14 +159,14 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
 
                   {/* Genre Filter */}
                   <div>
-                    <h3 className="text-gray-900 dark:text-white mb-3">Genre</h3>
+                    <h3 className="text-gray-900 dark:text-white mb-3">Kategori</h3>
                     <div className="space-y-2">
                       {genres.map((genre) => (
                         <label key={genre} className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
                           <Checkbox
                             checked={selectedGenres.includes(genre)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
+                            onCheckedChange={(checked: boolean | "indeterminate") => {
+                              if (checked === true) {
                                 setSelectedGenres([...selectedGenres, genre]);
                               } else {
                                 setSelectedGenres(selectedGenres.filter(g => g !== genre));
@@ -198,52 +179,6 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                     </div>
                   </div>
 
-                  {/* Subject Filter */}
-                  <div>
-                    <h3 className="text-gray-900 dark:text-white mb-3">Subjek</h3>
-                    <div className="space-y-2">
-                      {subjects.map((subject) => (
-                        <label key={subject} className="flex items-center gap-2 text-gray-700 dark:text-gray-300 cursor-pointer">
-                          <Checkbox
-                            checked={selectedSubjects.includes(subject)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedSubjects([...selectedSubjects, subject]);
-                              } else {
-                                setSelectedSubjects(selectedSubjects.filter(s => s !== subject));
-                              }
-                            }}
-                          />
-                          {subject}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Language Filter */}
-                  <div>
-                    <h3 className="text-gray-900 dark:text-white mb-3">Bahasa</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {languages.map((language) => (
-                        <Button
-                          key={language}
-                          variant={selectedLanguages.includes(language) ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            if (selectedLanguages.includes(language)) {
-                              setSelectedLanguages(selectedLanguages.filter(l => l !== language));
-                            } else {
-                              setSelectedLanguages([...selectedLanguages, language]);
-                            }
-                          }}
-                          className={selectedLanguages.includes(language) ? "bg-blue-600 hover:bg-blue-700 text-white" : ""}
-                        >
-                          {language}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
                   {/* Page Range Filter */}
                   <div>
                     <h3 className="text-gray-900 dark:text-white mb-3">
@@ -251,7 +186,7 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                     </h3>
                     <Slider
                       min={0}
-                      max={10000}
+                      max={2000}
                       step={50}
                       value={pageRange}
                       onValueChange={setPageRange}
@@ -269,20 +204,9 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                       max={5}
                       step={0.1}
                       value={[minRating]}
-                      onValueChange={(value) => setMinRating(value[0])}
+                      onValueChange={(value: number[]) => setMinRating(value[0])}
                       className="mt-2"
                     />
-                  </div>
-
-                  {/* Free Content Filter */}
-                  <div>
-                    <label className="flex items-center gap-3 text-gray-700 dark:text-gray-300 cursor-pointer">
-                      <Checkbox
-                        checked={freeOnly}
-                        onCheckedChange={(checked) => setFreeOnly(checked as boolean)}
-                      />
-                      <span>Hanya Konten Gratis</span>
-                    </label>
                   </div>
 
                   {/* Action Buttons */}
@@ -295,7 +219,10 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                       Reset Filter
                     </Button>
                     <Button
-                      onClick={() => setIsFilterOpen(false)}
+                      onClick={() => {
+                        setIsFilterOpen(false);
+                        handleSearch();
+                      }}
                       className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       Terapkan
@@ -327,30 +254,12 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                   />
                 </Badge>
               ))}
-              {selectedSubjects.map((subject) => (
-                <Badge key={subject} variant="secondary" className="gap-1">
-                  {subject}
-                  <X
-                    className="w-3 h-3 cursor-pointer"
-                    onClick={() => setSelectedSubjects(selectedSubjects.filter(s => s !== subject))}
-                  />
-                </Badge>
-              ))}
-              {selectedLanguages.map((language) => (
-                <Badge key={language} variant="secondary" className="gap-1">
-                  {language}
-                  <X
-                    className="w-3 h-3 cursor-pointer"
-                    onClick={() => setSelectedLanguages(selectedLanguages.filter(l => l !== language))}
-                  />
-                </Badge>
-              ))}
-              {(pageRange[0] > 0 || pageRange[1] < 10000) && (
+              {(pageRange[0] > 0 || pageRange[1] < 2000) && (
                 <Badge variant="secondary" className="gap-1">
                   {pageRange[0]}-{pageRange[1]} halaman
                   <X
                     className="w-3 h-3 cursor-pointer"
-                    onClick={() => setPageRange([0, 10000])}
+                    onClick={() => setPageRange([0, 2000])}
                   />
                 </Badge>
               )}
@@ -363,67 +272,56 @@ export function SearchScreen({ onSelectBook }: SearchScreenProps) {
                   />
                 </Badge>
               )}
-              {freeOnly && (
-                <Badge variant="secondary" className="gap-1">
-                  Gratis
-                  <X
-                    className="w-3 h-3 cursor-pointer"
-                    onClick={() => setFreeOnly(false)}
-                  />
-                </Badge>
-              )}
             </div>
           )}
 
           {/* Results */}
           <div className="mb-4">
             <p className="text-gray-600 dark:text-gray-400">
-              {filteredResults.length} hasil ditemukan
-              {searchQuery && ` untuk "${searchQuery}"`}
+              {isSearching ? "Mencari..." : `${filteredResults.length} hasil ditemukan`}
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredResults.map((book) => (
-              <Card
-                key={book.id}
-                className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => onSelectBook(book.id)}
-              >
-                <div className="aspect-[3/4] overflow-hidden relative">
-                  <ImageWithFallback
-                    src={book.image}
-                    alt={book.title}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
-                  {book.isPremium && (
-                    <div className="absolute top-2 right-2">
-                      <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 shadow-lg">
-                        Premium
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <h3 className="text-gray-900 dark:text-white mb-2 line-clamp-2">
-                    {book.title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-1">
-                    {book.author}
-                  </p>
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-1 text-yellow-500">
-                      <Star className="w-4 h-4 fill-current" />
-                      <span className="text-gray-900 dark:text-white">{book.rating}</span>
-                    </div>
-                    <span className="text-gray-500">{book.pages} hal</span>
+          {isSearching ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {filteredResults.map((book: Book) => (
+                <Card
+                  key={book.id}
+                  className="overflow-hidden cursor-pointer hover:shadow-lg transition-shadow"
+                  onClick={() => onSelectBook(book.id)}
+                >
+                  <div className="aspect-[3/4] overflow-hidden relative">
+                    <ImageWithFallback
+                      src={book.image}
+                      alt={book.title}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    />
                   </div>
-                </div>
-              </Card>
-            ))}
-          </div>
+                  <div className="p-4">
+                    <h3 className="text-gray-900 dark:text-white mb-2 line-clamp-2">
+                      {book.title}
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-2 line-clamp-1">
+                      {book.author}
+                    </p>
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-1 text-yellow-500">
+                        <Star className="w-4 h-4 fill-current" />
+                        <span className="text-gray-900 dark:text-white">{book.rating || 4.5}</span>
+                      </div>
+                      <span className="text-gray-500">{book.pageCount} hal</span>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
 
-          {filteredResults.length === 0 && (
+          {!isSearching && filteredResults.length === 0 && (
             <div className="text-center py-12">
               <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Search className="w-10 h-10 text-gray-400" />

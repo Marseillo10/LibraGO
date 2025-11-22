@@ -30,9 +30,9 @@ import {
   Bookmark,
   Share2,
   MoreVertical,
-  Columns,
-  Book,
   Palette,
+  Loader2,
+  Check,
 } from "lucide-react";
 import {
   Sheet,
@@ -60,19 +60,24 @@ import { Label } from "../ui/label";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Card } from "../ui/card";
-import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
 import { Badge } from "../ui/badge";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import { useBooks } from "../../context/BooksContext";
+import { generateBookContent, BookContent, getPageContent } from "../../utils/bookContent";
+import { AnimatePresence, motion } from "framer-motion";
+import confetti from "canvas-confetti";
+import { ShareQuoteDialog } from "../dialogs/ShareQuoteDialog";
 
 interface ReaderScreenProps {
   onBack: () => void;
+  onNavigate?: (path: string) => void;
   userName: string;
   userEmail: string;
+  darkMode?: boolean;
 }
 
 interface Highlight {
@@ -97,12 +102,16 @@ interface Annotation {
   position: number;
 }
 
-export function EnhancedReaderScreen({ onBack, userName, userEmail }: ReaderScreenProps) {
-  const [fontSize, setFontSize] = useState(16);
+export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, darkMode = false }: ReaderScreenProps) {
+  const { currentBook, updateBookProgress } = useBooks();
+  const [fontSize, setFontSize] = useState(18);
   const [lineHeight, setLineHeight] = useState(1.6);
-  const [theme, setTheme] = useState("sepia");
+  const [theme, setTheme] = useState(darkMode ? "dark" : "light");
   const [brightness, setBrightness] = useState(100);
-  const [currentPage, setCurrentPage] = useState(234);
+
+  // Initialize page from book, default to 1
+  const [currentPage, setCurrentPage] = useState(1);
+
   const [selectedText, setSelectedText] = useState("");
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
   const [showAnnotationDialog, setShowAnnotationDialog] = useState(false);
@@ -115,26 +124,57 @@ export function EnhancedReaderScreen({ onBack, userName, userEmail }: ReaderScre
   const [fontFamily, setFontFamily] = useState("inter");
   const [showTableOfContents, setShowTableOfContents] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
-  
+  const [shareQuoteOpen, setShareQuoteOpen] = useState(false);
+
+  // Book Content State
+  const [bookContent, setBookContent] = useState<BookContent | null>(null);
+  const [pageText, setPageText] = useState("");
+
   // Anti-Piracy State
   const [deviceId] = useState(() => generateDeviceFingerprint());
   const [sessionId] = useState(() => generateSessionId());
   const [protectionEnabled, setProtectionEnabled] = useState(true);
-  
+
   const [highlights, setHighlights] = useState<Highlight[]>([
-    { id: "1", text: "Computational processes are abstract beings", color: "yellow", page: 234 },
-    { id: "2", text: "People create programs to direct processes", color: "blue", note: "Important concept", page: 234 },
+    { id: "1", text: "Computational processes are abstract beings", color: "yellow", page: 1 },
   ]);
-  
-  const [bookmarks, setBookmarks] = useState<Bookmark[]>([
-    { id: "1", page: 10, label: "Introduction", color: "red" },
-    { id: "2", page: 45, label: "Chapter 2 Start", color: "blue" },
-    { id: "3", page: 234, label: "Current Position", color: "green" },
-  ]);
-  
-  const [annotations, setAnnotations] = useState<Annotation[]>([
-    { id: "1", text: "This explains the fundamental concept well", page: 234, position: 100 },
-  ]);
+
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+
+  // Initialize content and page when book loads
+  useEffect(() => {
+    if (currentBook) {
+      const content = generateBookContent(currentBook);
+      setBookContent(content);
+
+      // Ensure pageCount is valid
+      if (!currentBook.pageCount || currentBook.pageCount < 1) {
+        // If pageCount is missing/invalid, we can't really paginate properly.
+        // But we should avoid NaN.
+      }
+
+      const initialPage = currentBook.currentPage && currentBook.currentPage > 0 && !isNaN(currentBook.currentPage)
+        ? currentBook.currentPage
+        : 1;
+      setCurrentPage(initialPage);
+    }
+  }, [currentBook?.id]);
+
+  // Update page content when page or book content changes
+  useEffect(() => {
+    if (bookContent) {
+      setPageText(getPageContent(bookContent, currentPage));
+      window.scrollTo(0, 0);
+    }
+  }, [currentPage, bookContent]);
+
+  // Update progress when page changes
+  useEffect(() => {
+    if (currentBook) {
+      updateBookProgress(currentBook.id, currentPage);
+    }
+  }, [currentPage, currentBook?.id]);
 
   // Enhanced watermark with anti-piracy
   const watermarkConfig: WatermarkConfig = {
@@ -142,16 +182,16 @@ export function EnhancedReaderScreen({ onBack, userName, userEmail }: ReaderScre
     userEmail,
     deviceId,
     timestamp: new Date().toLocaleString(),
-    bookId: "book_sicp_001",
+    bookId: currentBook?.id || "",
     sessionId,
   };
-  
+
   const watermark = createWatermark(watermarkConfig);
-  
+
   // Initialize anti-piracy protection
   useEffect(() => {
-    if (!protectionEnabled) return;
-    
+    if (!protectionEnabled || !currentBook) return;
+
     const userSession: UserSession = {
       userId: userEmail,
       userName,
@@ -161,22 +201,17 @@ export function EnhancedReaderScreen({ onBack, userName, userEmail }: ReaderScre
       timestamp: Date.now(),
       isPremium: true,
     };
-    
-    // Initialize all anti-piracy measures
+
     const cleanup = initAntiPiracy(userSession);
-    
-    // Show protection active toast
-    toast.success("Content Protection Active", {
-      description: "This content is protected against unauthorized distribution",
-      duration: 3000,
-    });
-    
     return cleanup;
-  }, [protectionEnabled, userName, userEmail, deviceId, sessionId]);
+  }, [protectionEnabled, userName, userEmail, deviceId, sessionId, currentBook]);
+
+
+
 
   const themes = {
     light: { bg: "bg-white", text: "text-gray-900", name: "Light" },
-    dark: { bg: "bg-gray-900", text: "text-gray-100", name: "Dark" },
+    dark: { bg: "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900", text: "text-gray-50", name: "Dark" },
     sepia: { bg: "bg-amber-50", text: "text-gray-900", name: "Sepia" },
     night: { bg: "bg-gray-950", text: "text-gray-300", name: "Night" },
     eink: { bg: "bg-gray-100", text: "text-black", name: "E-Ink" },
@@ -201,21 +236,32 @@ export function EnhancedReaderScreen({ onBack, userName, userEmail }: ReaderScre
     { name: "Open Dyslexic", value: "opendyslexic" },
   ];
 
-  const tableOfContents = [
-    { id: "1", title: "Chapter 1: Building Abstractions", page: 1 },
-    { id: "2", title: "1.1 The Elements of Programming", page: 10 },
-    { id: "3", title: "1.2 Procedures and Processes", page: 45 },
-    { id: "4", title: "Chapter 2: Building Data Abstractions", page: 100 },
-    { id: "5", title: "2.1 Introduction to Data", page: 110 },
-  ];
+  const handleFinishBook = () => {
+    if (currentBook) {
+      updateBookProgress(currentBook.id, 100);
 
-  const bookContent = `Chapter 1: Building Abstractions with Procedures
+      // Trigger confetti animation
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.6 },
+        colors: ['#3b82f6', '#8b5cf6', '#10b981']
+      });
 
-The acts of the mind, wherein it exerts its power over simple ideas, are chiefly these three: 1. Combining several simple ideas into one compound one, and thus all complex ideas are made. 2. The second is bringing two ideas, whether simple or complex, together, and setting them by one another so as to take a view of them at once, without uniting them into one, by which it gets all its ideas of relations. 3. The third is separating them from all other ideas that accompany them in their real existence: this is called abstraction, and thus all its general ideas are made.
+      toast.success("Congratulations! You've finished the book.", {
+        description: "This book has been marked as completed.",
+      });
 
-We are about to study the idea of a computational process. Computational processes are abstract beings that inhabit computers. As they evolve, processes manipulate other abstract things called data. The evolution of a process is directed by a pattern of rules called a program. People create programs to direct processes.
-
-A computational process is indeed much like a sorcerer's idea of a spirit. It cannot be seen or touched. It is not composed of matter at all. However, it is very real. It can perform intellectual work. It can answer questions. It can affect the world by disbursing money at a bank or by controlling a robot arm in a factory.`;
+      // Delay navigation slightly to let user see the confetti
+      setTimeout(() => {
+        if (onNavigate) {
+          onNavigate("collection");
+        } else {
+          onBack();
+        }
+      }, 2000);
+    }
+  };
 
   const handleHighlight = (color: string) => {
     if (selectedText) {
@@ -257,13 +303,42 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
 
   const toggleTTS = () => {
     setTtsPlaying(!ttsPlaying);
-    toast.success(ttsPlaying ? "TTS Paused" : "TTS Playing");
+    if (!ttsPlaying) {
+      const utterance = new SpeechSynthesisUtterance(pageText);
+      utterance.rate = ttsSpeed;
+      window.speechSynthesis.speak(utterance);
+      toast.success("TTS Playing");
+
+      utterance.onend = () => setTtsPlaying(false);
+    } else {
+      window.speechSynthesis.cancel();
+      toast.success("TTS Paused");
+    }
   };
+
+  // Stop TTS on unmount
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
 
   const lookupWord = (word: string) => {
     setDictionaryWord(word);
     setShowDictionary(true);
   };
+
+  if (!currentBook || !bookContent) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-background flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
+        <p className="text-gray-500">Memuat buku...</p>
+        <Button variant="outline" onClick={onBack}>
+          Kembali ke Pustaka
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -272,23 +347,27 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
         <div className="sticky top-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800 shadow-sm">
           <div className="px-4 md:px-6 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={onBack}>
+              <Button variant="ghost" size="icon" onClick={onBack} aria-label="Go back">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <div>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Page {currentPage} of 350 · {Math.round((currentPage / 350) * 100)}%
+              <div className="hidden md:block">
+                <h1 className="text-sm font-semibold text-gray-900 dark:text-white max-w-[200px] truncate">
+                  {currentBook.title}
+                </h1>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  Page {currentPage} of {currentBook.pageCount} · {Math.round((currentPage / currentBook.pageCount) * 100)}%
                 </p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
+
+            <div className="flex items-center gap-1 md:gap-2">
               {/* TTS Controls */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleTTS}
                 className={ttsPlaying ? "text-blue-600" : ""}
+                aria-label={ttsPlaying ? "Pause Text-to-Speech" : "Start Text-to-Speech"}
               >
                 {ttsPlaying ? <Pause className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
               </Button>
@@ -296,7 +375,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
               {/* Bookmarks */}
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" aria-label="View Bookmarks">
                     <Bookmark className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
@@ -328,24 +407,65 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                           </div>
                         </Card>
                       ))}
+                      {bookmarks.length === 0 && (
+                        <div className="text-center py-8 text-gray-500">
+                          Belum ada bookmark
+                        </div>
+                      )}
                     </div>
                   </ScrollArea>
                 </SheetContent>
               </Sheet>
 
               {/* Table of Contents */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowTableOfContents(true)}
-              >
-                <List className="w-5 h-5" />
-              </Button>
+              <Sheet open={showTableOfContents} onOpenChange={setShowTableOfContents}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Table of Contents"
+                  >
+                    <List className="w-5 h-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left">
+                  <SheetHeader>
+                    <SheetTitle>Daftar Isi</SheetTitle>
+                    <SheetDescription>
+                      Navigasi cepat ke bab atau bagian tertentu
+                    </SheetDescription>
+                  </SheetHeader>
+                  <ScrollArea className="h-[calc(100vh-100px)] mt-4">
+                    <div className="space-y-1">
+                      {bookContent?.chapters.map((chapter, index) => (
+                        <Button
+                          key={index}
+                          variant="ghost"
+                          className="w-full justify-start text-left h-auto py-3"
+                          onClick={() => {
+                            setCurrentPage(chapter.page);
+                            setShowTableOfContents(false);
+                          }}
+                        >
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="font-medium text-sm text-gray-900 dark:text-white">
+                              {chapter.title}
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              Halaman {chapter.page}
+                            </span>
+                          </div>
+                        </Button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
 
               {/* More Options */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" aria-label="More Options">
                     <MoreVertical className="w-5 h-5" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -369,7 +489,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
               {/* Reader Settings */}
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon">
+                  <Button variant="ghost" size="icon" aria-label="Reader Settings">
                     <Settings className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
@@ -442,9 +562,9 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                         </div>
                         <Slider
                           value={[fontSize]}
-                          onValueChange={(value) => setFontSize(value[0])}
+                          onValueChange={(value: number[]) => setFontSize(value[0])}
                           min={12}
-                          max={28}
+                          max={32}
                           step={1}
                         />
                       </div>
@@ -459,7 +579,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                         </div>
                         <Slider
                           value={[lineHeight]}
-                          onValueChange={(value) => setLineHeight(value[0])}
+                          onValueChange={(value: number[]) => setLineHeight(value[0])}
                           min={1.2}
                           max={2.5}
                           step={0.1}
@@ -479,7 +599,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                         </div>
                         <Slider
                           value={[brightness]}
-                          onValueChange={(value) => setBrightness(value[0])}
+                          onValueChange={(value: number[]) => setBrightness(value[0])}
                           min={50}
                           max={150}
                           step={5}
@@ -491,7 +611,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                       {/* Reading Mode */}
                       <div>
                         <Label className="mb-3 block">Reading Mode</Label>
-                        <RadioGroup value={readingMode} onValueChange={(v) => setReadingMode(v as any)}>
+                        <RadioGroup value={readingMode} onValueChange={(v: string) => setReadingMode(v as "scroll" | "page")}>
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="scroll" id="scroll" />
                             <Label htmlFor="scroll">Scroll</Label>
@@ -499,21 +619,6 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                           <div className="flex items-center space-x-2">
                             <RadioGroupItem value="page" id="page" />
                             <Label htmlFor="page">Paginated</Label>
-                          </div>
-                        </RadioGroup>
-                      </div>
-
-                      {/* Page View */}
-                      <div>
-                        <Label className="mb-3 block">Page View</Label>
-                        <RadioGroup value={pageView} onValueChange={(v) => setPageView(v as any)}>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="single" id="single" />
-                            <Label htmlFor="single">Single Page</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="double" id="double" />
-                            <Label htmlFor="double">Double Page (Tablet)</Label>
                           </div>
                         </RadioGroup>
                       </div>
@@ -528,25 +633,13 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                         </div>
                         <Slider
                           value={[ttsSpeed]}
-                          onValueChange={(value) => setTtsSpeed(value[0])}
+                          onValueChange={(value: number[]) => setTtsSpeed(value[0])}
                           min={0.5}
                           max={2.0}
                           step={0.1}
                         />
                       </div>
 
-                      {/* Auto Bookmark */}
-                      <div className="flex items-center justify-between">
-                        <Label>Auto Bookmark</Label>
-                        <Switch defaultChecked />
-                      </div>
-
-                      {/* Blue Light Filter */}
-                      <div className="flex items-center justify-between">
-                        <Label>Blue Light Filter</Label>
-                        <Switch />
-                      </div>
-                      
                       {/* Anti-Piracy Protection */}
                       <Separator />
                       <div className="flex items-center justify-between">
@@ -556,7 +649,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                             Prevent unauthorized distribution
                           </p>
                         </div>
-                        <Switch 
+                        <Switch
                           checked={protectionEnabled}
                           onCheckedChange={setProtectionEnabled}
                         />
@@ -587,25 +680,6 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                           </div>
                         </ScrollArea>
                       </div>
-
-                      {/* Annotations */}
-                      <div>
-                        <h4 className="text-sm text-gray-900 dark:text-white mb-3">
-                          Annotations ({annotations.length})
-                        </h4>
-                        <ScrollArea className="h-32">
-                          <div className="space-y-2">
-                            {annotations.map((annotation) => (
-                              <Card key={annotation.id} className="p-3">
-                                <p className="text-sm text-gray-900 dark:text-white">
-                                  {annotation.text}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-1">Page {annotation.page}</p>
-                              </Card>
-                            ))}
-                          </div>
-                        </ScrollArea>
-                      </div>
                     </TabsContent>
                   </Tabs>
                 </SheetContent>
@@ -617,7 +691,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
 
       {/* Reading Area */}
       <div
-        className={`flex-1 ${currentTheme.bg} ${currentTheme.text} transition-all relative`}
+        className={`flex-1 ${currentTheme.bg} ${currentTheme.text} transition-all relative overflow-y-auto`}
         style={{ filter: `brightness(${brightness}%)` }}
         onClick={() => immersiveMode && setImmersiveMode(false)}
       >
@@ -639,7 +713,7 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                 {watermark}
               </div>
             ))}
-            
+
             {/* Corner watermarks */}
             <div className="absolute top-4 left-4 text-[8px] opacity-5 select-none">
               {userName} • {deviceId.slice(0, 8)}
@@ -655,17 +729,16 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
             </div>
           </div>
         )}
-        
-        <div className="max-w-4xl mx-auto px-6 py-12 relative z-10">
+
+        <div className="max-w-3xl mx-auto px-6 py-8 md:py-12 relative z-10 min-h-[calc(100vh-140px)]">
           {/* Dynamic Watermark Header */}
-          <div className="opacity-10 text-xs text-gray-500 mb-8 select-none">
+          <div className="opacity-10 text-xs text-gray-500 mb-8 select-none text-center">
             {watermark}
           </div>
 
           <div
-            className={`prose prose-lg max-w-none ${currentTheme.text} ${
-              protectionEnabled ? 'anti-piracy-protected' : ''
-            }`}
+            className={`prose prose-lg max-w-none ${currentTheme.text} ${protectionEnabled ? 'anti-piracy-protected' : ''
+              }`}
             style={{
               fontSize: `${fontSize}px`,
               lineHeight: lineHeight,
@@ -682,16 +755,22 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
               }
             }}
           >
-            {bookContent.split('\n\n').map((paragraph, index) => (
-              <p key={index} className="mb-6">{paragraph}</p>
-            ))}
+            {/* Render Structured Content */}
+            <div dangerouslySetInnerHTML={{
+              __html: pageText
+                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline hover:text-blue-800">$1</a>')
+                .replace(/\n\n/g, '<br/><br/>')
+            }} />
           </div>
 
           {/* Page Number at bottom */}
           <div className="text-center mt-12 text-sm text-gray-500">
-            {currentPage}
+            Page {currentPage}
           </div>
-          
+
           {/* Protection Status Indicator */}
           {protectionEnabled && (
             <div className="mt-4 text-center">
@@ -716,20 +795,36 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
               Previous
             </Button>
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {Math.round((currentPage / 350) * 100)}%
+            <div className="flex flex-col items-center">
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                Page {currentPage}
+              </span>
+              <span className="text-xs text-gray-500">
+                {Math.round((currentPage / currentBook.pageCount) * 100)}% Completed
               </span>
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(Math.min(350, currentPage + 1))}
-              disabled={currentPage === 350}
-            >
-              Next
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
+            {currentBook && currentPage >= currentBook.pageCount ? (
+              <Button
+                onClick={handleFinishBook}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Finish Book
+                <Check className="w-5 h-5 ml-2" />
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const nextPage = Math.min(currentBook?.pageCount || 1, currentPage + 1);
+                  setCurrentPage(nextPage);
+                }}
+                disabled={!currentBook || currentPage >= currentBook.pageCount}
+              >
+                Next
+                <ChevronRight className="w-5 h-5 ml-2" />
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -739,8 +834,8 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={() => setShowHighlightMenu(false)}>
           <Card className="p-4" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-3">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                "{selectedText.substring(0, 50)}{selectedText.length > 50 ? '...' : ''}"
+              <p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">
+                "{selectedText}"
               </p>
               <Separator />
               <div className="flex gap-2">
@@ -764,111 +859,13 @@ A computational process is indeed much like a sorcerer's idea of a spirit. It ca
                   <Search className="w-4 h-4 mr-2" />
                   Define
                 </Button>
-                <Button size="sm" variant="outline" className="flex-1">
-                  <Languages className="w-4 h-4 mr-2" />
-                  Translate
-                </Button>
               </div>
             </div>
           </Card>
         </div>
       )}
-
-      {/* Table of Contents Dialog */}
-      <Dialog open={showTableOfContents} onOpenChange={setShowTableOfContents}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Table of Contents</DialogTitle>
-            <DialogDescription>
-              Navigasi cepat ke bagian tertentu dalam buku
-            </DialogDescription>
-          </DialogHeader>
-          <ScrollArea className="h-96">
-            <div className="space-y-2">
-              {tableOfContents.map((item) => (
-                <Button
-                  key={item.id}
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => {
-                    setCurrentPage(item.page);
-                    setShowTableOfContents(false);
-                  }}
-                >
-                  <span className="flex-1 text-left">{item.title}</span>
-                  <span className="text-sm text-gray-500">p.{item.page}</span>
-                </Button>
-              ))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dictionary Dialog */}
-      <Dialog open={showDictionary} onOpenChange={setShowDictionary}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Dictionary: {dictionaryWord}</DialogTitle>
-            <DialogDescription>
-              Definisi dan arti kata yang dipilih
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm mb-2">Definition</h4>
-              <p className="text-gray-600 dark:text-gray-400">
-                [Dictionary definition would be fetched from API]
-              </p>
-            </div>
-            <div>
-              <h4 className="text-sm mb-2">Examples</h4>
-              <ul className="list-disc list-inside text-sm text-gray-600 dark:text-gray-400">
-                <li>Example usage 1</li>
-                <li>Example usage 2</li>
-              </ul>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Annotation Dialog */}
-      <Dialog open={showAnnotationDialog} onOpenChange={setShowAnnotationDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Annotation</DialogTitle>
-            <DialogDescription>
-              Tambahkan catatan atau komentar untuk teks yang dipilih
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Selected Text</Label>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded">
-                {selectedText}
-              </p>
-            </div>
-            <div>
-              <Label>Your Note</Label>
-              <Textarea
-                placeholder="Add your thoughts..."
-                className="mt-2"
-                rows={4}
-                id="annotation-text"
-              />
-            </div>
-            <Button
-              className="w-full"
-              onClick={() => {
-                const textarea = document.getElementById("annotation-text") as HTMLTextAreaElement;
-                handleAddAnnotation(textarea.value);
-                textarea.value = "";
-              }}
-            >
-              Save Annotation
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
+
+

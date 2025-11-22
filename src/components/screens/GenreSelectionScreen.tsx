@@ -39,7 +39,7 @@ export function GenreSelectionScreen({ onComplete }: GenreSelectionScreenProps) 
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-6">
       <div className="max-w-4xl mx-auto py-8">
         {/* Header */}
         <div className="text-center mb-8">
@@ -62,11 +62,10 @@ export function GenreSelectionScreen({ onComplete }: GenreSelectionScreenProps) 
               <Card
                 key={genre.id}
                 onClick={() => toggleGenre(genre.id)}
-                className={`p-6 cursor-pointer transition-all hover:scale-105 ${
-                  isSelected
-                    ? "ring-4 ring-blue-500 dark:ring-blue-400 shadow-lg"
-                    : "hover:shadow-md"
-                }`}
+                className={`p-6 cursor-pointer transition-all hover:scale-105 ${isSelected
+                  ? "ring-4 ring-blue-500 dark:ring-blue-400 shadow-lg"
+                  : "hover:shadow-md"
+                  }`}
               >
                 <div className="text-center">
                   <div className="text-5xl mb-3">{genre.emoji}</div>

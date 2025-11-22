@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
@@ -13,9 +13,11 @@ import {
   Download,
   Clock,
   FileText,
+  Loader2,
 } from "lucide-react";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import { useBooks } from "../../context/BooksContext";
 
 interface BookDetailScreenProps {
   onBack: () => void;
@@ -24,54 +26,53 @@ interface BookDetailScreenProps {
 }
 
 export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreenProps) {
+  const { currentBook, addToLibrary, removeFromLibrary, toggleFavorite, library, startDownload } = useBooks();
   const [isFavorite, setIsFavorite] = useState(false);
 
-  const book = {
-    id: "1",
-    title: "Structure and Interpretation of Computer Programs",
-    authors: "Harold Abelson, Gerald Jay Sussman, Julie Sussman",
-    publisher: "MIT Press",
-    year: 1996,
-    pages: 350,
-    language: "English",
-    isbn: "978-0262510875",
-    rating: 4.9,
-    totalRatings: 1542,
-    image: "https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=400&h=600&fit=crop",
-    description:
-      "Structure and Interpretation of Computer Programs has had a dramatic impact on computer science curricula over the past decade. This long-awaited revision contains changes throughout the text. There are new implementations of most of the major programming systems in the book, including the interpreters and compilers, and the authors have incorporated many small changes that reflect their experience teaching the course at MIT since the first edition was published.",
-    genres: ["Computer Science", "Programming", "Textbook"],
-    readingProgress: 67,
-    currentPage: 234,
-    isPremium: false,
-  };
+  useEffect(() => {
+    if (currentBook) {
+      setIsFavorite(currentBook.isFavorite);
+    }
+  }, [currentBook]);
+
+  if (!currentBook) {
+    return (
+      <div className="min-h-screen bg-white dark:bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   const handleToggleFavorite = () => {
+    toggleFavorite(currentBook.id);
     setIsFavorite(!isFavorite);
-    toast.success(isFavorite ? "Dihapus dari favorit" : "Ditambahkan ke favorit");
+    toast.success(!isFavorite ? "Ditambahkan ke favorit" : "Dihapus dari favorit");
   };
 
   const handleShare = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/book/${currentBook.id}`);
     toast.success("Link buku berhasil disalin!");
   };
 
   const handleDownload = () => {
-    if (book.isPremium) {
-      onUpgrade();
-    } else {
-      toast.success("Buku sedang diunduh...");
-    }
+    startDownload(currentBook);
   };
 
+  const handleAddToLibrary = () => {
+    addToLibrary(currentBook);
+  };
+
+  const isInLibrary = library.some(b => b.id === currentBook.id);
+
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
+    <div className="min-h-screen bg-white dark:bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="px-6 py-4 flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h2 className="text-gray-900 dark:text-white flex-1">Detail Buku</h2>
+          <h2 className="text-gray-900 dark:text-white flex-1 line-clamp-1">{currentBook.title}</h2>
           <Button
             variant="ghost"
             size="icon"
@@ -94,21 +95,32 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
             <div className="lg:col-span-1">
               <div className="aspect-[3/4] rounded-lg overflow-hidden shadow-lg mb-4">
                 <ImageWithFallback
-                  src={book.image}
-                  alt={book.title}
+                  src={currentBook.image}
+                  alt={currentBook.title}
                   className="w-full h-full object-cover"
                 />
               </div>
-              
+
               {/* Action Buttons */}
               <div className="space-y-3">
-                <Button
-                  onClick={onRead}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <BookOpen className="w-5 h-5 mr-2" />
-                  {book.readingProgress > 0 ? "Lanjutkan Membaca" : "Mulai Membaca"}
-                </Button>
+                {isInLibrary ? (
+                  <Button
+                    onClick={onRead}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <BookOpen className="w-5 h-5 mr-2" />
+                    {currentBook.progress > 0 ? "Lanjutkan Membaca" : "Mulai Membaca"}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleAddToLibrary}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    <BookOpen className="w-5 h-5 mr-2" />
+                    Tambahkan ke Pustaka
+                  </Button>
+                )}
+
                 <Button
                   onClick={handleDownload}
                   variant="outline"
@@ -120,7 +132,7 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
               </div>
 
               {/* Reading Progress */}
-              {book.readingProgress > 0 && (
+              {currentBook.progress > 0 && (
                 <Card className="p-4 mt-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Clock className="w-4 h-4 text-gray-600 dark:text-gray-400" />
@@ -131,13 +143,13 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">
-                        Halaman {book.currentPage} dari {book.pages}
+                        Halaman {currentBook.currentPage} dari {currentBook.pageCount}
                       </span>
                       <span className="text-gray-900 dark:text-white">
-                        {book.readingProgress}%
+                        {currentBook.progress}%
                       </span>
                     </div>
-                    <Progress value={book.readingProgress} className="h-2" />
+                    <Progress value={currentBook.progress} className="h-2" />
                   </div>
                 </Card>
               )}
@@ -145,38 +157,33 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
 
             {/* Details */}
             <div className="lg:col-span-2">
-              <h1 className="text-gray-900 dark:text-white mb-3">
-                {book.title}
+              <h1 className="text-gray-900 dark:text-white mb-3 text-2xl lg:text-4xl font-bold">
+                {currentBook.title}
               </h1>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                {book.authors}
+              <p className="text-gray-600 dark:text-gray-400 mb-4 text-lg">
+                {currentBook.author}
               </p>
 
               {/* Rating */}
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex items-center gap-1 text-yellow-500">
                   <Star className="w-5 h-5 fill-current" />
-                  <span className="text-gray-900 dark:text-white">
-                    {book.rating}
+                  <span className="text-gray-900 dark:text-white font-medium">
+                    {currentBook.rating || 4.5}
                   </span>
                 </div>
                 <span className="text-gray-600 dark:text-gray-400 text-sm">
-                  ({book.totalRatings} rating)
+                  (Google Books Rating)
                 </span>
               </div>
 
               {/* Genres */}
               <div className="flex flex-wrap gap-2 mb-6">
-                {book.genres.map((genre) => (
+                {currentBook.genre.map((genre) => (
                   <Badge key={genre} variant="secondary">
                     {genre}
                   </Badge>
                 ))}
-                {book.isPremium && (
-                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0">
-                    Premium
-                  </Badge>
-                )}
               </div>
 
               {/* Tabs */}
@@ -190,36 +197,29 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
                 </div>
 
                 <TabsContent value="description" className="mt-4">
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {book.description}
-                  </p>
+                  <div
+                    className="text-gray-700 dark:text-gray-300 leading-relaxed prose dark:prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: currentBook.description || "Tidak ada deskripsi tersedia." }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="details" className="mt-4">
                   <div className="space-y-3">
                     <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
                       <span className="text-gray-600 dark:text-gray-400">Penulis</span>
-                      <span className="text-gray-900 dark:text-white">{book.authors}</span>
+                      <span className="text-gray-900 dark:text-white text-right">{currentBook.author}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
                       <span className="text-gray-600 dark:text-gray-400">Penerbit</span>
-                      <span className="text-gray-900 dark:text-white">{book.publisher}</span>
+                      <span className="text-gray-900 dark:text-white text-right">{currentBook.publisher || "-"}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                      <span className="text-gray-600 dark:text-gray-400">Tahun</span>
-                      <span className="text-gray-900 dark:text-white">{book.year}</span>
+                      <span className="text-gray-600 dark:text-gray-400">Tanggal Terbit</span>
+                      <span className="text-gray-900 dark:text-white text-right">{currentBook.publishedDate || "-"}</span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
                       <span className="text-gray-600 dark:text-gray-400">Halaman</span>
-                      <span className="text-gray-900 dark:text-white">{book.pages}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                      <span className="text-gray-600 dark:text-gray-400">Bahasa</span>
-                      <span className="text-gray-900 dark:text-white">{book.language}</span>
-                    </div>
-                    <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                      <span className="text-gray-600 dark:text-gray-400">ISBN</span>
-                      <span className="text-gray-900 dark:text-white">{book.isbn}</span>
+                      <span className="text-gray-900 dark:text-white text-right">{currentBook.pageCount}</span>
                     </div>
                   </div>
                 </TabsContent>
@@ -232,20 +232,7 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
                       </h3>
                       <Card className="p-4 bg-gray-50 dark:bg-gray-800">
                         <p className="text-gray-700 dark:text-gray-300 text-sm font-mono">
-                          Abelson, H., Sussman, G. J., & Sussman, J. (1996). Structure and
-                          Interpretation of Computer Programs. MIT Press.
-                        </p>
-                      </Card>
-                    </div>
-
-                    <div>
-                      <h3 className="text-gray-900 dark:text-white mb-2">
-                        MLA Style
-                      </h3>
-                      <Card className="p-4 bg-gray-50 dark:bg-gray-800">
-                        <p className="text-gray-700 dark:text-gray-300 text-sm font-mono">
-                          Abelson, Harold, et al. Structure and Interpretation of Computer
-                          Programs. MIT Press, 1996.
+                          {currentBook.author}. ({currentBook.publishedDate?.substring(0, 4) || "n.d."}). {currentBook.title}. {currentBook.publisher || "Publisher"}.
                         </p>
                       </Card>
                     </div>

@@ -55,7 +55,7 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background flex flex-col items-center justify-center p-6">
       <div className="max-w-md w-full">
         {/* Logo */}
         <div className="flex justify-center mb-8">
@@ -90,13 +90,12 @@ export function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
           {steps.map((_, index) => (
             <div
               key={index}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                index === currentStep
-                  ? "w-8 bg-blue-600"
-                  : index < currentStep
+              className={`h-2 rounded-full transition-all duration-300 ${index === currentStep
+                ? "w-8 bg-blue-600"
+                : index < currentStep
                   ? "w-2 bg-blue-400"
                   : "w-2 bg-gray-300 dark:bg-gray-700"
-              }`}
+                }`}
             />
           ))}
         </div>

@@ -8,108 +8,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { Label } from "../ui/label";
-import { toast } from "sonner@2.0.3";
-
-interface DownloadItem {
-  id: string;
-  title: string;
-  author: string;
-  coverColor: string;
-  status: "downloading" | "paused" | "completed" | "error";
-  progress: number;
-  size: string;
-  downloadedSize: string;
-  quality: "low" | "medium" | "high";
-}
+import { toast } from "sonner";
+import { useBooks } from "../../context/BooksContext";
 
 const DownloadScreen = () => {
+  const { downloads, pauseDownload, resumeDownload, cancelDownload, removeDownload } = useBooks();
   const [autoDownload, setAutoDownload] = useState(false);
   const [wifiOnly, setWifiOnly] = useState(true);
   const [downloadQuality, setDownloadQuality] = useState("medium");
 
-  const [downloads, setDownloads] = useState<DownloadItem[]>([
-    {
-      id: "1",
-      title: "Clean Code",
-      author: "Robert C. Martin",
-      coverColor: "bg-blue-500",
-      status: "downloading",
-      progress: 67,
-      size: "45.2 MB",
-      downloadedSize: "30.3 MB",
-      quality: "high",
-    },
-    {
-      id: "2",
-      title: "Design Patterns",
-      author: "Erich Gamma",
-      coverColor: "bg-purple-500",
-      status: "paused",
-      progress: 34,
-      size: "52.8 MB",
-      downloadedSize: "18.0 MB",
-      quality: "medium",
-    },
-    {
-      id: "3",
-      title: "The Pragmatic Programmer",
-      author: "Andrew Hunt",
-      coverColor: "bg-green-500",
-      status: "completed",
-      progress: 100,
-      size: "38.5 MB",
-      downloadedSize: "38.5 MB",
-      quality: "high",
-    },
-    {
-      id: "4",
-      title: "Refactoring",
-      author: "Martin Fowler",
-      coverColor: "bg-orange-500",
-      status: "error",
-      progress: 12,
-      size: "41.2 MB",
-      downloadedSize: "5.0 MB",
-      quality: "low",
-    },
-  ]);
-
   const storageInfo = {
-    used: 2.4,
+    used: downloads.reduce((acc, d) => acc + parseFloat(d.downloadedSize), 0) / 1024, // GB approximation
     total: 10,
     unit: "GB",
   };
 
   const usedPercentage = (storageInfo.used / storageInfo.total) * 100;
 
-  const handlePauseResume = (id: string) => {
-    setDownloads(downloads.map(d =>
-      d.id === id
-        ? { ...d, status: d.status === "downloading" ? "paused" : "downloading" }
-        : d
-    ));
-    toast.success(downloads.find(d => d.id === id)?.status === "downloading" ? "Download dijeda" : "Download dilanjutkan");
+  const handlePauseResume = (id: string, status: string) => {
+    if (status === "downloading") {
+      pauseDownload(id);
+    } else {
+      resumeDownload(id);
+    }
   };
 
   const handleRetry = (id: string) => {
-    setDownloads(downloads.map(d =>
-      d.id === id ? { ...d, status: "downloading", progress: d.progress } : d
-    ));
-    toast.success("Download dimulai kembali");
+    resumeDownload(id); // Retry logic same as resume for now
   };
 
   const handleDelete = (id: string) => {
-    setDownloads(downloads.filter(d => d.id !== id));
-    toast.success("Download dihapus");
+    removeDownload(id);
   };
 
   const handleClearCompleted = () => {
-    setDownloads(downloads.filter(d => d.status !== "completed"));
+    downloads.filter(d => d.status === "completed").forEach(d => removeDownload(d.id));
     toast.success("Download selesai telah dihapus");
   };
 
   const handleClearAll = () => {
-    setDownloads([]);
+    downloads.forEach(d => removeDownload(d.id));
     toast.success("Semua download dihapus");
   };
 
@@ -121,7 +59,7 @@ const DownloadScreen = () => {
         return <Pause className="w-5 h-5 text-orange-600" />;
       case "completed":
         return <CheckCircle className="w-5 h-5 text-green-600" />;
-      case "error":
+      case "failed":
         return <AlertCircle className="w-5 h-5 text-red-600" />;
       default:
         return null;
@@ -130,10 +68,10 @@ const DownloadScreen = () => {
 
   const activeDownloads = downloads.filter(d => d.status === "downloading" || d.status === "paused");
   const completedDownloads = downloads.filter(d => d.status === "completed");
-  const errorDownloads = downloads.filter(d => d.status === "error");
+  const errorDownloads = downloads.filter(d => d.status === "failed");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -172,7 +110,7 @@ const DownloadScreen = () => {
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 dark:text-gray-400">Digunakan</span>
               <span className="text-gray-900 dark:text-white">
-                {storageInfo.used} {storageInfo.unit} dari {storageInfo.total} {storageInfo.unit}
+                {storageInfo.used.toFixed(2)} {storageInfo.unit} dari {storageInfo.total} {storageInfo.unit}
               </span>
             </div>
             <Progress value={usedPercentage} className="h-2" />
@@ -265,8 +203,16 @@ const DownloadScreen = () => {
                 {downloads.map((download) => (
                   <Card key={download.id} className="p-4">
                     <div className="flex gap-4">
-                      <div className={`w-16 h-24 ${download.coverColor} rounded-lg flex-shrink-0`} />
-                      
+                      <div className="w-16 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg flex-shrink-0 overflow-hidden">
+                        {download.coverUrl ? (
+                          <img src={download.coverUrl} alt={download.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs text-center p-1">
+                            No Cover
+                          </div>
+                        )}
+                      </div>
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
@@ -306,7 +252,7 @@ const DownloadScreen = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handlePauseResume(download.id)}
+                              onClick={() => handlePauseResume(download.id, download.status)}
                             >
                               <Pause className="w-4 h-4 mr-1" />
                               Jeda
@@ -316,13 +262,13 @@ const DownloadScreen = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handlePauseResume(download.id)}
+                              onClick={() => handlePauseResume(download.id, download.status)}
                             >
                               <Play className="w-4 h-4 mr-1" />
                               Lanjutkan
                             </Button>
                           )}
-                          {download.status === "error" && (
+                          {download.status === "failed" && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -360,8 +306,16 @@ const DownloadScreen = () => {
               ) : (
                 activeDownloads.map((download) => (
                   <Card key={download.id} className="p-4">
-                    {/* Same content as above */}
-                    <p className="text-gray-900 dark:text-white">{download.title}</p>
+                    {/* Simplified view for active tab, can be expanded if needed */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-900 dark:text-white font-medium">{download.title}</p>
+                        <p className="text-sm text-gray-500">{download.progress}% - {download.status}</p>
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => handlePauseResume(download.id, download.status)}>
+                        {download.status === 'downloading' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      </Button>
+                    </div>
                   </Card>
                 ))
               )}
@@ -389,7 +343,18 @@ const DownloadScreen = () => {
                   </div>
                   {completedDownloads.map((download) => (
                     <Card key={download.id} className="p-4">
-                      <p className="text-gray-900 dark:text-white">{download.title}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-16 bg-gray-200 rounded overflow-hidden">
+                          {download.coverUrl && <img src={download.coverUrl} className="w-full h-full object-cover" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-gray-900 dark:text-white font-medium">{download.title}</p>
+                          <p className="text-sm text-gray-500">{download.size}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" className="text-red-500" onClick={() => removeDownload(download.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </Card>
                   ))}
                 </>
@@ -409,6 +374,7 @@ const DownloadScreen = () => {
                 errorDownloads.map((download) => (
                   <Card key={download.id} className="p-4">
                     <p className="text-gray-900 dark:text-white">{download.title}</p>
+                    <Button size="sm" variant="outline" onClick={() => handleRetry(download.id)}>Retry</Button>
                   </Card>
                 ))
               )}

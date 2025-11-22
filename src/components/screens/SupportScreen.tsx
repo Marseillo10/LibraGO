@@ -11,7 +11,7 @@ import { Label } from "../ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Separator } from "../ui/separator";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 const SupportScreen = () => {
   const [customAmount, setCustomAmount] = useState("");
@@ -152,7 +152,7 @@ const SupportScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -216,9 +216,8 @@ const SupportScreen = () => {
                 return (
                   <Card
                     key={tier.id}
-                    className={`p-6 cursor-pointer transition-all hover:shadow-lg relative ${
-                      isSelected ? "ring-4 ring-blue-500" : ""
-                    }`}
+                    className={`p-6 cursor-pointer transition-all hover:shadow-lg relative ${isSelected ? "ring-4 ring-blue-500" : ""
+                      }`}
                     onClick={() => setSelectedTier(tier.id)}
                   >
                     {tier.popular && (
@@ -424,11 +423,10 @@ const SupportScreen = () => {
                       return (
                         <div
                           key={method.id}
-                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            selectedPaymentMethod === method.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                          }`}
+                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedPaymentMethod === method.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                            }`}
                           onClick={() => setSelectedPaymentMethod(method.id)}
                         >
                           <RadioGroupItem value={method.id} id={method.id} />
@@ -449,11 +447,10 @@ const SupportScreen = () => {
                       return (
                         <div
                           key={method.id}
-                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            selectedPaymentMethod === method.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                          }`}
+                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedPaymentMethod === method.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                            }`}
                           onClick={() => setSelectedPaymentMethod(method.id)}
                         >
                           <RadioGroupItem value={method.id} id={method.id} />
@@ -474,11 +471,10 @@ const SupportScreen = () => {
                       return (
                         <div
                           key={method.id}
-                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                            selectedPaymentMethod === method.id
-                              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                          }`}
+                          className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${selectedPaymentMethod === method.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                            }`}
                           onClick={() => setSelectedPaymentMethod(method.id)}
                         >
                           <RadioGroupItem value={method.id} id={method.id} />

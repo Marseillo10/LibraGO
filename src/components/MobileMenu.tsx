@@ -22,6 +22,7 @@ import {
   Crown,
   LogOut,
   ChevronRight,
+  LayoutDashboard,
 } from "lucide-react";
 
 interface MobileMenuProps {
@@ -59,6 +60,7 @@ export function MobileMenu({
         { id: "goals", icon: Target, label: "Target & Tantangan" },
         { id: "downloads", icon: Download, label: "Download" },
         { id: "community", icon: Users, label: "Komunitas" },
+        { id: "publisher", icon: LayoutDashboard, label: "Publisher Dashboard" },
       ],
     },
     {

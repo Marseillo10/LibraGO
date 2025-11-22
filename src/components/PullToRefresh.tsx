@@ -11,7 +11,7 @@ interface PullToRefreshProps {
 
 export function PullToRefresh({ onRefresh, children, className = "", disabled = false }: PullToRefreshProps) {
   const [refreshStatus, setRefreshStatus] = useState<'success' | 'error' | null>(null);
-  
+
   const handleRefresh = async () => {
     try {
       await onRefresh();
@@ -24,7 +24,7 @@ export function PullToRefresh({ onRefresh, children, className = "", disabled = 
   };
 
   const { isRefreshing, pullDistance, containerRef } = usePullToRefresh(
-    disabled ? async () => {} : handleRefresh
+    disabled ? async () => { } : handleRefresh
   );
 
   const showIndicator = pullDistance > 0 || isRefreshing || refreshStatus !== null;
@@ -46,7 +46,7 @@ export function PullToRefresh({ onRefresh, children, className = "", disabled = 
             height: '80px',
           }}
         >
-          <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-full p-3 shadow-lg border border-gray-200 dark:border-gray-700">
+          <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-full p-3 shadow-lg border border-gray-200 dark:border-gray-700">
             {refreshStatus === 'success' ? (
               <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400 animate-in zoom-in duration-200" />
             ) : refreshStatus === 'error' ? (
@@ -56,13 +56,13 @@ export function PullToRefresh({ onRefresh, children, className = "", disabled = 
             ) : shouldTrigger ? (
               <RefreshCw className="w-6 h-6 text-blue-600 dark:text-blue-400 animate-bounce" />
             ) : (
-              <ArrowDown 
+              <ArrowDown
                 className="w-6 h-6 text-gray-400 dark:text-gray-500 transition-transform"
                 style={{ transform: `rotate(${(pullDistance / 60) * 180}deg)` }}
               />
             )}
           </div>
-          
+
           {/* Progress indicator text */}
           <div className="mt-2 text-xs text-gray-600 dark:text-gray-400">
             {refreshStatus === 'success' ? (
@@ -83,19 +83,18 @@ export function PullToRefresh({ onRefresh, children, className = "", disabled = 
       {/* Progress Bar */}
       {pullDistance > 0 && !isRefreshing && refreshStatus === null && (
         <div className="absolute top-0 left-0 right-0 h-1 bg-gray-200 dark:bg-gray-700 z-40">
-          <div 
-            className={`h-full transition-all duration-100 ${
-              shouldTrigger 
-                ? 'bg-blue-600 dark:bg-blue-400' 
-                : 'bg-gray-400 dark:bg-gray-500'
-            }`}
+          <div
+            className={`h-full transition-all duration-100 ${shouldTrigger
+              ? 'bg-blue-600 dark:bg-blue-400'
+              : 'bg-gray-400 dark:bg-gray-500'
+              }`}
             style={{ width: `${pullPercentage}%` }}
           />
         </div>
       )}
 
       {/* Content */}
-      <div 
+      <div
         className="transition-all duration-200"
         style={{ paddingTop: isRefreshing || refreshStatus !== null ? '80px' : '0' }}
       >

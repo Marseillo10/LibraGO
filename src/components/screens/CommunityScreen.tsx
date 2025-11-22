@@ -6,9 +6,15 @@ import { Avatar, AvatarFallback } from "../ui/avatar";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Input } from "../ui/input";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
+import { useBooks } from "../../context/BooksContext";
+import { PullToRefresh } from "../PullToRefresh";
+import { EmptyState } from "../EmptyState";
+import { ErrorState } from "../ErrorState";
+import { CommunitySkeleton } from "../skeletons/CommunitySkeleton";
 
 const CommunityScreen = () => {
+  const { trendingBooks } = useBooks();
   const [activeTab, setActiveTab] = useState("feed");
 
   const activityFeed = [
@@ -96,12 +102,6 @@ const CommunityScreen = () => {
     },
   ];
 
-  const trending = [
-    { rank: 1, title: "Clean Code", author: "Robert C. Martin", readers: 1234 },
-    { rank: 2, title: "Design Patterns", author: "Erich Gamma", readers: 987 },
-    { rank: 3, title: "The Pragmatic Programmer", author: "Andrew Hunt", readers: 856 },
-  ];
-
   const suggestedUsers = [
     { name: "Diana P.", avatar: "DP", books: 47, followers: 234, isFollowing: false },
     { name: "Eko W.", avatar: "EW", books: 62, followers: 456, isFollowing: false },
@@ -120,8 +120,13 @@ const CommunityScreen = () => {
     toast.success(`Berhasil follow ${userName}`);
   };
 
+  const handleRefresh = async () => {
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    toast.success('Feed diperbarui');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -157,65 +162,75 @@ const CommunityScreen = () => {
 
               {/* Feed Tab */}
               <TabsContent value="feed" className="space-y-4 mt-6">
-                {activityFeed.map((activity) => (
-                  <Card key={activity.id} className="p-6">
-                    <div className="flex gap-4">
-                      <Avatar className="w-12 h-12">
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
-                          {activity.user.avatar}
-                        </AvatarFallback>
-                      </Avatar>
+                {activityFeed.length > 0 ? (
+                  activityFeed.map((activity) => (
+                    <Card key={activity.id} className="p-6">
+                      <div className="flex gap-4">
+                        <Avatar className="w-12 h-12">
+                          <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                            {activity.user.avatar}
+                          </AvatarFallback>
+                        </Avatar>
 
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-gray-900 dark:text-white">
-                            {activity.user.name}
-                          </span>
-                          {activity.user.isPremium && (
-                            <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs px-1.5 py-0">
-                              Premium
-                            </Badge>
-                          )}
-                          <span className="text-gray-600 dark:text-gray-400">
-                            {activity.action}
-                          </span>
-                        </div>
-
-                        {activity.book && (
-                          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-3">
-                            <p className="text-gray-900 dark:text-white">
-                              📚 {activity.book}
-                            </p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-gray-900 dark:text-white">
+                              {activity.user.name}
+                            </span>
+                            {activity.user.isPremium && (
+                              <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs px-1.5 py-0">
+                                Premium
+                              </Badge>
+                            )}
+                            <span className="text-gray-600 dark:text-gray-400">
+                              {activity.action}
+                            </span>
                           </div>
-                        )}
 
-                        <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500 mb-3">
-                          <span>{activity.timeAgo}</span>
-                        </div>
+                          {activity.book && (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 mb-3">
+                              <p className="text-gray-900 dark:text-white">
+                                📚 {activity.book}
+                              </p>
+                            </div>
+                          )}
 
-                        <div className="flex items-center gap-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className={`gap-2 ${activity.hasLiked ? "text-red-600" : ""}`}
-                            onClick={() => handleLike(activity.id)}
-                          >
-                            <Heart className={`w-4 h-4 ${activity.hasLiked ? "fill-current" : ""}`} />
-                            {activity.likes}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="gap-2">
-                            <MessageSquare className="w-4 h-4" />
-                            {activity.comments}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="gap-2">
-                            <Share2 className="w-4 h-4" />
-                            Share
-                          </Button>
+                          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-500 mb-3">
+                            <span>{activity.timeAgo}</span>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`gap-2 ${activity.hasLiked ? "text-red-600" : ""}`}
+                              onClick={() => handleLike(activity.id)}
+                            >
+                              <Heart className={`w-4 h-4 ${activity.hasLiked ? "fill-current" : ""}`} />
+                              {activity.likes}
+                            </Button>
+                            <Button variant="ghost" size="sm" className="gap-2">
+                              <MessageSquare className="w-4 h-4" />
+                              {activity.comments}
+                            </Button>
+                            <Button variant="ghost" size="sm" className="gap-2">
+                              <Share2 className="w-4 h-4" />
+                              Share
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </Card>
-                ))}
+                    </Card>
+                  ))
+                ) : (
+                  <EmptyState
+                    icon={MessageSquare}
+                    title="Belum ada aktivitas"
+                    description="Jadilah yang pertama memulai diskusi di komunitas!"
+                    actionLabel="Buat Post"
+                    onAction={() => toast.info("Fitur posting akan segera hadir!")}
+                  />
+                )}
               </TabsContent>
 
               {/* Book Clubs Tab */}
@@ -321,10 +336,10 @@ const CommunityScreen = () => {
                 <h3 className="text-gray-900 dark:text-white">Trending</h3>
               </div>
               <div className="space-y-3">
-                {trending.map((book) => (
-                  <div key={book.rank} className="flex items-center gap-3">
+                {trendingBooks.slice(0, 5).map((book, index) => (
+                  <div key={book.id} className="flex items-center gap-3">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 text-white flex items-center justify-center">
-                      {book.rank}
+                      {index + 1}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-900 dark:text-white truncate">
@@ -335,10 +350,15 @@ const CommunityScreen = () => {
                       </p>
                     </div>
                     <Badge variant="outline" className="text-xs">
-                      {book.readers}
+                      {(book.rating || 0).toFixed(1)} ⭐
                     </Badge>
                   </div>
                 ))}
+                {trendingBooks.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">
+                    Memuat trending...
+                  </p>
+                )}
               </div>
             </Card>
 
@@ -381,7 +401,7 @@ const CommunityScreen = () => {
           </div>
         </div>
       </div>
-    </div>
+    </PullToRefresh>
   );
 };
 

@@ -11,61 +11,91 @@ import { Separator } from "../ui/separator";
 import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Slider } from "../ui/slider";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "../ui/alert-dialog";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
-const SettingsScreen = () => {
+interface UserData {
+  name: string;
+  email: string;
+  isPremium: boolean;
+  bio?: string;
+  location?: string;
+  birthDate?: string;
+  joinDate?: string;
+  level?: number;
+  xp?: number;
+  nextXp?: number;
+  nextLevel?: number;
+}
+
+interface SettingsScreenProps {
+  user: UserData;
+  onUpdateProfile: (data: Partial<UserData>) => void;
+  onLogout: () => void;
+  darkMode: boolean;
+  onToggleDarkMode: () => void;
+  onNavigate: (screen: string) => void;
+}
+
+import { useBooks } from "../../context/BooksContext";
+
+// ... (imports remain the same)
+
+const SettingsScreen = ({
+  user: initialUser, // Ignore prop
+  onUpdateProfile, // Ignore prop
+  onLogout,
+  darkMode,
+  onToggleDarkMode,
+  onNavigate,
+}: SettingsScreenProps) => {
+  const { userProfile, settings, updateSettings, updateProfile } = useBooks();
+
   // Account Settings
-  const [name, setName] = useState("John Doe");
-  const [email, setEmail] = useState("john.doe@example.com");
+  const [name, setName] = useState(userProfile.name);
+  const [email, setEmail] = useState(userProfile.email);
 
   // Notification Settings
-  const [notifications, setNotifications] = useState({
-    newBooks: true,
-    readingReminders: true,
-    achievements: true,
-    socialActivity: false,
-    newsletter: true,
-    premiumExpiry: true,
-  });
+  const [notifications, setNotifications] = useState(settings.notifications);
 
   // Appearance Settings
-  const [theme, setTheme] = useState("system");
+  const [theme, setTheme] = useState(settings.theme);
   const [accentColor, setAccentColor] = useState("blue");
 
   // Reading Preferences
-  const [readingPreferences, setReadingPreferences] = useState({
-    fontSize: 16,
-    lineHeight: 1.5,
-    pageTransition: "slide",
-    autoBookmark: true,
-    readingMode: "paginated",
-  });
+  const [readingPreferences, setReadingPreferences] = useState(settings.readingPreferences);
 
   // Privacy Settings
-  const [privacy, setPrivacy] = useState({
-    profilePublic: true,
-    showReadingActivity: true,
-    allowRecommendations: true,
-  });
+  const [privacy, setPrivacy] = useState(settings.privacy);
 
   // Data & Storage
-  const [autoDownload, setAutoDownload] = useState(false);
-  const [downloadQuality, setDownloadQuality] = useState("high");
+  const [autoDownload, setAutoDownload] = useState(settings.download.autoDownload);
+  const [downloadQuality, setDownloadQuality] = useState(settings.download.quality);
 
   const handleSaveProfile = () => {
+    updateProfile({ name, email });
     toast.success("Profil berhasil diperbarui");
   };
 
   const handleLogout = () => {
+    onLogout();
     toast.success("Berhasil logout");
   };
 
   const handleDeleteAccount = () => {
     toast.success("Akun berhasil dihapus");
+    onLogout();
+  };
+
+  // Update settings when local state changes (debounced or on specific actions could be better, but direct update for now)
+  // For simplicity in this refactor, we'll just update local state and assume "Save" buttons or effects would sync to context if we had a backend.
+  // But since we have updateSettings in context, let's use it for toggles.
+
+  const updateContextSettings = (newSettings: any) => {
+    updateSettings(newSettings);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+    <div className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -220,7 +250,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="new-books"
                     checked={notifications.newBooks}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setNotifications({ ...notifications, newBooks: checked })
                     }
                   />
@@ -238,7 +268,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="reminders"
                     checked={notifications.readingReminders}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setNotifications({ ...notifications, readingReminders: checked })
                     }
                   />
@@ -256,7 +286,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="achievements"
                     checked={notifications.achievements}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setNotifications({ ...notifications, achievements: checked })
                     }
                   />
@@ -274,7 +304,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="social"
                     checked={notifications.socialActivity}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setNotifications({ ...notifications, socialActivity: checked })
                     }
                   />
@@ -292,7 +322,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="newsletter"
                     checked={notifications.newsletter}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setNotifications({ ...notifications, newsletter: checked })
                     }
                   />
@@ -310,7 +340,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="premium-expiry"
                     checked={notifications.premiumExpiry}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setNotifications({ ...notifications, premiumExpiry: checked })
                     }
                   />
@@ -392,11 +422,10 @@ const SettingsScreen = () => {
                     <button
                       key={colorOption.name}
                       onClick={() => setAccentColor(colorOption.name)}
-                      className={`h-12 rounded-lg ${colorOption.color} transition-all ${
-                        accentColor === colorOption.name
-                          ? "ring-4 ring-offset-2 ring-blue-600 dark:ring-offset-gray-900"
-                          : "hover:scale-105"
-                      }`}
+                      className={`h-12 rounded-lg ${colorOption.color} transition-all ${accentColor === colorOption.name
+                        ? "ring-4 ring-offset-2 ring-blue-600 dark:ring-offset-slate-900"
+                        : "hover:scale-105"
+                        }`}
                     />
                   ))}
                 </div>
@@ -420,7 +449,7 @@ const SettingsScreen = () => {
                     max={24}
                     step={1}
                     value={[readingPreferences.fontSize]}
-                    onValueChange={(value) =>
+                    onValueChange={(value: number[]) =>
                       setReadingPreferences({ ...readingPreferences, fontSize: value[0] })
                     }
                     className="mt-2"
@@ -436,7 +465,7 @@ const SettingsScreen = () => {
                     max={2.0}
                     step={0.1}
                     value={[readingPreferences.lineHeight]}
-                    onValueChange={(value) =>
+                    onValueChange={(value: number[]) =>
                       setReadingPreferences({ ...readingPreferences, lineHeight: value[0] })
                     }
                     className="mt-2"
@@ -449,8 +478,8 @@ const SettingsScreen = () => {
                   <Label>Mode Membaca</Label>
                   <Select
                     value={readingPreferences.readingMode}
-                    onValueChange={(value) =>
-                      setReadingPreferences({ ...readingPreferences, readingMode: value })
+                    onValueChange={(value: string) =>
+                      setReadingPreferences({ ...readingPreferences, readingMode: value as "scroll" | "paginated" })
                     }
                   >
                     <SelectTrigger className="mt-2">
@@ -469,8 +498,8 @@ const SettingsScreen = () => {
                   <Label>Transisi Halaman</Label>
                   <Select
                     value={readingPreferences.pageTransition}
-                    onValueChange={(value) =>
-                      setReadingPreferences({ ...readingPreferences, pageTransition: value })
+                    onValueChange={(value: string) =>
+                      setReadingPreferences({ ...readingPreferences, pageTransition: value as "slide" | "curl" | "none" })
                     }
                   >
                     <SelectTrigger className="mt-2">
@@ -496,7 +525,7 @@ const SettingsScreen = () => {
                   <Switch
                     id="auto-bookmark"
                     checked={readingPreferences.autoBookmark}
-                    onCheckedChange={(checked) =>
+                    onCheckedChange={(checked: boolean) =>
                       setReadingPreferences({ ...readingPreferences, autoBookmark: checked })
                     }
                   />
@@ -525,7 +554,7 @@ const SettingsScreen = () => {
                     <Switch
                       id="profile-public"
                       checked={privacy.profilePublic}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked: boolean) =>
                         setPrivacy({ ...privacy, profilePublic: checked })
                       }
                     />
@@ -543,7 +572,7 @@ const SettingsScreen = () => {
                     <Switch
                       id="show-activity"
                       checked={privacy.showReadingActivity}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked: boolean) =>
                         setPrivacy({ ...privacy, showReadingActivity: checked })
                       }
                     />
@@ -561,7 +590,7 @@ const SettingsScreen = () => {
                     <Switch
                       id="recommendations"
                       checked={privacy.allowRecommendations}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked: boolean) =>
                         setPrivacy({ ...privacy, allowRecommendations: checked })
                       }
                     />

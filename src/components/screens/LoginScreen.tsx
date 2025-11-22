@@ -22,10 +22,10 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate loading
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     setIsLoading(false);
     onLogin();
   };
@@ -44,10 +44,10 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" />
         <div className="absolute bottom-0 left-1/2 w-[500px] h-[500px] bg-amber-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000" />
-        
+
         {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-gray-950 opacity-95" />
-        <div 
+        <div className="absolute inset-0 bg-slate-950 opacity-95" />
+        <div
           className="absolute inset-0 opacity-10"
           style={{
             backgroundImage: `linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px), 
@@ -59,7 +59,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
 
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-        
+
         {/* Left Side - Branding (Hidden on mobile) */}
         <div className="hidden lg:flex flex-1 flex-col space-y-8">
           <div className="space-y-4">
@@ -70,7 +70,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
                 <p className="text-blue-400 text-sm">Your Digital Library</p>
               </div>
             </div>
-            
+
             <h2 className="text-5xl text-white leading-tight">
               Baca Ribuan Buku
               <br />
@@ -78,7 +78,7 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
                 Kapan Saja, Di Mana Saja
               </span>
             </h2>
-            
+
             <p className="text-gray-400 text-lg max-w-md">
               Platform e-book terlengkap dengan fitur canggih untuk pengalaman membaca yang tak terlupakan.
             </p>
@@ -138,22 +138,22 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
 
             {/* SSO Options */}
             <div className="grid grid-cols-3 gap-3 mb-6">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full bg-white hover:bg-gray-100 text-gray-900 border-gray-300"
                 type="button"
               >
                 <GoogleIcon className="w-5 h-5" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full bg-gray-800 hover:bg-gray-700 text-white border-gray-600"
                 type="button"
               >
                 <AppleIcon className="w-6 h-6" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
                 type="button"
               >
@@ -189,8 +189,8 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-gray-300 text-sm">Kata Sandi</label>
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     className="text-blue-400 text-xs hover:text-blue-300 transition-colors"
                   >
                     Lupa kata sandi?
@@ -216,8 +216,8 @@ export function LoginScreen({ onLogin, onNavigateToRegister }: LoginScreenProps)
                 </div>
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white h-11 mt-6 gap-2"
                 disabled={isLoading}
               >

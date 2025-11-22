@@ -7,7 +7,7 @@ import { Separator } from "../ui/separator";
 import { LibraGoLogo } from "../LibraGoLogo";
 import { Badge } from "../ui/badge";
 import { Checkbox } from "../ui/checkbox";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { GoogleIcon, AppleIcon, FacebookIcon } from "../icons/SocialIcons";
 
 interface RegisterScreenProps {
@@ -27,22 +27,22 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (password !== confirmPassword) {
       toast.error("Kata sandi tidak cocok!");
       return;
     }
-    
+
     if (!agreedToTerms) {
       toast.error("Anda harus menyetujui syarat & ketentuan");
       return;
     }
-    
+
     setIsLoading(true);
-    
+
     // Simulate loading
     await new Promise(resolve => setTimeout(resolve, 1000));
-    
+
     toast.success("Akun berhasil dibuat!");
     setIsLoading(false);
     onRegister();
@@ -62,10 +62,10 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
         <div className="absolute top-0 left-0 w-[500px] h-[500px] bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob" />
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000" />
         <div className="absolute bottom-0 left-1/2 w-[500px] h-[500px] bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-4000" />
-        
+
         {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-gray-950 opacity-95" />
-        <div 
+        <div className="absolute inset-0 bg-slate-950 opacity-95" />
+        <div
           className="absolute inset-0 opacity-10"
           style={{
             backgroundImage: `linear-gradient(rgba(168, 85, 247, 0.1) 1px, transparent 1px), 
@@ -77,7 +77,7 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
 
       {/* Content Container */}
       <div className="relative z-10 w-full max-w-6xl flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-        
+
         {/* Left Side - Benefits (Hidden on mobile) */}
         <div className="hidden lg:flex flex-1 flex-col space-y-8">
           <div className="space-y-4">
@@ -88,7 +88,7 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
                 <p className="text-purple-400 text-sm">Your Digital Library</p>
               </div>
             </div>
-            
+
             <h2 className="text-5xl text-white leading-tight">
               Mulai Petualangan
               <br />
@@ -96,7 +96,7 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
                 Membaca Anda
               </span>
             </h2>
-            
+
             <p className="text-gray-400 text-lg max-w-md">
               Bergabung dengan 50,000+ pembaca yang telah menemukan dunia pengetahuan tak terbatas.
             </p>
@@ -150,22 +150,22 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
 
             {/* SSO Options */}
             <div className="grid grid-cols-3 gap-3 mb-6">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full bg-white hover:bg-gray-100 text-gray-900 border-gray-300"
                 type="button"
               >
                 <GoogleIcon className="w-5 h-5" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full bg-gray-800 hover:bg-gray-700 text-white border-gray-600"
                 type="button"
               >
                 <AppleIcon className="w-6 h-6" />
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white border-blue-600"
                 type="button"
               >
@@ -260,10 +260,10 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
               </div>
 
               <div className="flex items-start gap-3 pt-2">
-                <Checkbox 
-                  id="terms" 
+                <Checkbox
+                  id="terms"
                   checked={agreedToTerms}
-                  onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
+                  onCheckedChange={(checked: boolean) => setAgreedToTerms(checked)}
                   className="mt-1"
                 />
                 <label htmlFor="terms" className="text-sm text-gray-300 leading-relaxed">
@@ -273,8 +273,8 @@ export function RegisterScreen({ onRegister, onNavigateToLogin }: RegisterScreen
                 </label>
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white h-11 mt-6 gap-2"
                 disabled={isLoading}
               >

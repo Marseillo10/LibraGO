@@ -1,84 +1,43 @@
 import React, { useState } from "react";
-import { Target, TrendingUp, Calendar, Award, Plus, Edit2, Trash2, Check, X } from "lucide-react";
+import { Trophy, Target, Flame, Calendar, ChevronRight, Star, BookOpen, TrendingUp, Share2, Plus, Check, Trash2, Award } from "lucide-react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { Badge } from "../ui/badge";
+import { toast } from "sonner";
+import confetti from "canvas-confetti";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-
-interface Goal {
-  id: string;
-  title: string;
-  type: "books" | "pages" | "time" | "genre";
-  target: number;
-  current: number;
-  period: "daily" | "weekly" | "monthly" | "yearly";
-  startDate: string;
-  endDate: string;
-  status: "active" | "completed" | "failed";
-}
+import { useBooks, ReadingGoal } from "../../context/BooksContext";
 
 const ReadingGoalsScreen = () => {
-  const [goals, setGoals] = useState<Goal[]>([
-    {
-      id: "1",
-      title: "Baca 50 Buku Tahun 2024",
-      type: "books",
-      target: 50,
-      current: 28,
-      period: "yearly",
-      startDate: "2024-01-01",
-      endDate: "2024-12-31",
-      status: "active",
-    },
-    {
-      id: "2",
-      title: "Baca 500 Halaman Bulan Ini",
-      type: "pages",
-      target: 500,
-      current: 342,
-      period: "monthly",
-      startDate: "2024-10-01",
-      endDate: "2024-10-31",
-      status: "active",
-    },
-    {
-      id: "3",
-      title: "Baca 1 Jam Setiap Hari",
-      type: "time",
-      target: 7,
-      current: 5,
-      period: "weekly",
-      startDate: "2024-10-23",
-      endDate: "2024-10-29",
-      status: "active",
-    },
-    {
-      id: "4",
-      title: "Eksplorasi 5 Genre Berbeda",
-      type: "genre",
-      target: 5,
-      current: 4,
-      period: "monthly",
-      startDate: "2024-10-01",
-      endDate: "2024-10-31",
-      status: "active",
-    },
-  ]);
+  const { readingGoals, addGoal, deleteGoal, library } = useBooks();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newGoal, setNewGoal] = useState({
     title: "",
-    type: "books" as Goal["type"],
+    type: "books" as ReadingGoal["type"],
     target: 10,
-    period: "monthly" as Goal["period"],
+    period: "monthly" as ReadingGoal["period"],
   });
 
   // Challenges - pre-made goals
+  const handleClaimReward = (challengeId: number) => {
+    // Trigger confetti animation
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#3b82f6', '#8b5cf6', '#ec4899']
+    });
+
+    toast.success("Reward claimed successfully!", {
+      description: "Keep up the great work!",
+    });
+  };
   const challenges = [
     {
       id: "c1",
@@ -114,13 +73,6 @@ const ReadingGoalsScreen = () => {
     },
   ];
 
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 100) return "bg-green-600";
-    if (percentage >= 75) return "bg-blue-600";
-    if (percentage >= 50) return "bg-yellow-600";
-    return "bg-gray-600";
-  };
-
   const getTypeLabel = (type: string) => {
     switch (type) {
       case "books": return "Buku";
@@ -141,35 +93,7 @@ const ReadingGoalsScreen = () => {
     }
   };
 
-  const calculateProgress = (current: number, target: number) => {
-    return Math.min((current / target) * 100, 100);
-  };
-
-  const getDaysRemaining = (endDate: string) => {
-    const end = new Date(endDate);
-    const today = new Date();
-    const diff = end.getTime() - today.getTime();
-    return Math.ceil(diff / (1000 * 60 * 60 * 24));
-  };
-
-  const handleCreateGoal = () => {
-    const goal: Goal = {
-      id: Date.now().toString(),
-      title: newGoal.title,
-      type: newGoal.type,
-      target: newGoal.target,
-      current: 0,
-      period: newGoal.period,
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: getEndDate(newGoal.period),
-      status: "active",
-    };
-    setGoals([...goals, goal]);
-    setIsCreateDialogOpen(false);
-    setNewGoal({ title: "", type: "books", target: 10, period: "monthly" });
-  };
-
-  const getEndDate = (period: Goal["period"]) => {
+  const getEndDate = (period: ReadingGoal["period"]) => {
     const today = new Date();
     switch (period) {
       case "daily":
@@ -185,15 +109,59 @@ const ReadingGoalsScreen = () => {
     }
   };
 
-  const deleteGoal = (id: string) => {
-    setGoals(goals.filter(g => g.id !== id));
+  const handleCreateGoal = () => {
+    const goal: ReadingGoal = {
+      id: Date.now().toString(),
+      title: newGoal.title,
+      type: newGoal.type,
+      target: newGoal.target,
+      current: 0, // Initial progress is 0, will be calculated dynamically
+      period: newGoal.period,
+      startDate: new Date().toISOString().split("T")[0],
+      endDate: getEndDate(newGoal.period),
+      status: "active",
+    };
+    addGoal(goal);
+    setIsCreateDialogOpen(false);
+    setNewGoal({ title: "", type: "books", target: 10, period: "monthly" });
   };
 
-  const activeGoals = goals.filter(g => g.status === "active");
-  const completedGoals = goals.filter(g => g.status === "completed");
+  // Calculate dynamic progress for goals
+  const getGoalProgress = (goal: ReadingGoal) => {
+    if (goal.type === "books") {
+      // Count books finished within the goal period
+      const startDate = new Date(goal.startDate);
+      const endDate = new Date(goal.endDate);
+
+      const finishedBooks = library.filter(book => {
+        if (book.progress !== 100 || !book.lastReadDate) return false;
+        const readDate = new Date(book.lastReadDate);
+        return readDate >= startDate && readDate <= endDate;
+      });
+
+      return finishedBooks.length;
+    }
+    // For other types, we might need more complex tracking (e.g. pages read log)
+    // For now, return stored current value
+    return goal.current;
+  };
+
+  const calculatePercentage = (current: number, target: number) => {
+    return Math.min((current / target) * 100, 100);
+  };
+
+  const getDaysRemaining = (endDate: string) => {
+    const end = new Date(endDate);
+    const today = new Date();
+    const diff = end.getTime() - today.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  };
+
+  const activeGoals = readingGoals.filter(g => g.status === "active");
+  const completedGoals = readingGoals.filter(g => g.status === "completed"); // This status update logic needs to be implemented in context or effect
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4 md:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
@@ -236,7 +204,7 @@ const ReadingGoalsScreen = () => {
                   <Label>Tipe Target</Label>
                   <Select
                     value={newGoal.type}
-                    onValueChange={(value: Goal["type"]) => setNewGoal({ ...newGoal, type: value })}
+                    onValueChange={(value: ReadingGoal["type"]) => setNewGoal({ ...newGoal, type: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -262,7 +230,7 @@ const ReadingGoalsScreen = () => {
                   <Label>Periode</Label>
                   <Select
                     value={newGoal.period}
-                    onValueChange={(value: Goal["period"]) => setNewGoal({ ...newGoal, period: value })}
+                    onValueChange={(value: ReadingGoal["period"]) => setNewGoal({ ...newGoal, period: value })}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -317,10 +285,10 @@ const ReadingGoalsScreen = () => {
                   <TrendingUp className="w-5 h-5" />
                 </div>
                 <p className="text-3xl">
-                  {Math.round(
-                    activeGoals.reduce((acc, g) => acc + calculateProgress(g.current, g.target), 0) /
+                  {activeGoals.length > 0 ? Math.round(
+                    activeGoals.reduce((acc, g) => acc + calculatePercentage(getGoalProgress(g), g.target), 0) /
                     activeGoals.length
-                  )}%
+                  ) : 0}%
                 </p>
               </Card>
             </div>
@@ -329,21 +297,26 @@ const ReadingGoalsScreen = () => {
             <div className="space-y-4">
               <h3 className="text-gray-900 dark:text-white">Target Aktif</h3>
               {activeGoals.map((goal) => {
-                const progress = calculateProgress(goal.current, goal.target);
+                const currentProgress = getGoalProgress(goal);
+                const progressPercentage = calculatePercentage(currentProgress, goal.target);
                 const daysLeft = getDaysRemaining(goal.endDate);
 
                 return (
                   <Card key={goal.id} className="p-6">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
-                        <h4 className="text-gray-900 dark:text-white mb-2">{goal.title}</h4>
+                        <h4 className="text-gray-900 dark:text-white mb-2 truncate">{goal.title}</h4>
                         <div className="flex flex-wrap gap-2">
                           <Badge variant="outline">{getPeriodLabel(goal.period)}</Badge>
                           <Badge variant="outline">{getTypeLabel(goal.type)}</Badge>
-                          {daysLeft > 0 && (
+                          {daysLeft > 0 ? (
                             <Badge variant="outline" className="gap-1">
                               <Calendar className="w-3 h-3" />
                               {daysLeft} hari tersisa
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="gap-1">
+                              Berakhir
                             </Badge>
                           )}
                         </div>
@@ -362,13 +335,13 @@ const ReadingGoalsScreen = () => {
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-gray-600 dark:text-gray-400">Progress</span>
                         <span className="text-gray-900 dark:text-white">
-                          {goal.current} / {goal.target} {getTypeLabel(goal.type)}
+                          {currentProgress} / {goal.target} {getTypeLabel(goal.type)}
                         </span>
                       </div>
-                      <Progress value={progress} className="h-3" />
+                      <Progress value={progressPercentage} className="h-3" />
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {progress.toFixed(0)}% tercapai
-                        {progress >= 100 && " ����"}
+                        {progressPercentage.toFixed(0)}% tercapai
+                        {progressPercentage >= 100 && " 🎉"}
                       </p>
                     </div>
                   </Card>
@@ -412,8 +385,8 @@ const ReadingGoalsScreen = () => {
                             challenge.difficulty === "Easy"
                               ? "outline"
                               : challenge.difficulty === "Medium"
-                              ? "secondary"
-                              : "default"
+                                ? "secondary"
+                                : "default"
                           }
                         >
                           {challenge.difficulty}
