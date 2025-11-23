@@ -10,7 +10,7 @@ import {
   Star,
   Crown,
   Mic,
-  Camera,
+  ScanBarcode,
   Clock,
   TrendingUp,
   Grid3x3,
@@ -58,6 +58,7 @@ import { Label } from "../ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
+import { cleanDescription } from "../../utils/textUtils";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { VoiceSearch } from "../VoiceSearch";
 import { toast } from "sonner";
@@ -84,11 +85,11 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   const [searchQuery, setSearchQuery] = useState(searchState.query || "");
   const debouncedQuery = useDebounce(searchQuery, 500); // 500ms delay
 
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(searchState.isFilterOpen || false);
   const [showVoiceSearch, setShowVoiceSearch] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [sortBy, setSortBy] = useState("relevance");
+  const [viewMode, setViewMode] = useState<"grid" | "list">(searchState.viewMode || "grid");
+  const [sortBy, setSortBy] = useState(searchState.filters?.sortBy || "relevance");
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
     const saved = localStorage.getItem("librago-recent-searches");
     return saved ? JSON.parse(saved) : ["Clean Code", "Design Patterns", "Python", "React"];
@@ -215,6 +216,16 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
     localStorage.setItem("librago-recent-searches", JSON.stringify(recentSearches));
   }, [recentSearches]);
 
+  // Persist View Mode
+  useEffect(() => {
+    setSearchState((prev: any) => ({ ...prev, viewMode }));
+  }, [viewMode]);
+
+  // Persist Filter Open State
+  useEffect(() => {
+    setSearchState((prev: any) => ({ ...prev, isFilterOpen }));
+  }, [isFilterOpen]);
+
   // Improved Search Suggestions Logic
   const [suggestedBooks, setSuggestedBooks] = useState<Book[]>([]);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
@@ -222,11 +233,12 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
 
   // Ref to track if we are restoring state to prevent auto-suggestions
   const isRestoring = useRef(!!searchState.query);
+  const shouldShowSuggestions = useRef(true);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
       // Don't show suggestions if we are restoring state or query is too short
-      if (isRestoring.current || !debouncedQuery || debouncedQuery.length < 3) {
+      if (isRestoring.current || !shouldShowSuggestions.current || !debouncedQuery || debouncedQuery.length < 3) {
         setSuggestedBooks([]);
         setShowSuggestions(false);
         return;
@@ -338,9 +350,51 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       let terms: string[] = [];
 
       // SMART SEARCH LOGIC
-      const cleanQuery = query.trim();
+      let cleanQuery = query.trim();
 
-      // 0. Concept Expansion (Semantic Lite)
+      // 0. Pre-processing: Remove filler words
+      cleanQuery = cleanQuery.replace(/^(show me|find|search for|look for|get|i want) /i, "");
+
+      // 1. Natural Language Patterns (NLP-lite)
+      const patterns = [
+        { regex: /(?:books?|novels?|stories?) (?:about|concerning|on) (.+)/i, type: 'subject' },
+        { regex: /(?:books?|novels?|works?) (?:by|written by|authored by) (.+)/i, type: 'author' },
+        { regex: /(?:published|released) (?:in|from) (\d{4})/i, type: 'year' },
+        { regex: /(?:published|released) (?:by) (.+)/i, type: 'publisher' },
+        { regex: /(?:books?|novels?) (?:in) (english|spanish|french|german|italian|indonesian|japanese|chinese|korean|russian)/i, type: 'language' }
+      ];
+
+      let nlpMatchFound = false;
+      for (const pattern of patterns) {
+        const match = cleanQuery.match(pattern.regex);
+        if (match && match[1]) {
+          const value = match[1].trim();
+          if (pattern.type === 'year') {
+            // For year, we might want to set the year filter or add to query
+            // Let's add to query for now as 'published:YYYY' isn't standard in our API wrapper but 'subject' etc are.
+            // Actually, OpenLibrary supports 'published:YYYY' in q parameter usually, or we can use our client side filter.
+            // Let's try adding it to terms if it's a standard field, or handle specially.
+            // For simplicity in this "Smart Search", let's map to our known prefixes.
+            // But wait, our API wrapper takes a single query string.
+            // Let's assume the API handles 'published:YYYY' or we just add the year.
+            // Actually, looking at the code below, we construct `terms`.
+            // Let's push to terms.
+            // However, for 'year', we have a client-side filter `isYearFilterEnabled`.
+            // Maybe we should enable that?
+            // For now, let's stick to query terms for simplicity and robustness.
+            // Open Library often accepts just the year.
+            terms.push(value);
+          } else {
+            terms.push(`${pattern.type}:${value}`);
+          }
+          nlpMatchFound = true;
+          // We might want to stop after first match or allow multiple?
+          // Let's break to avoid conflicting interpretations of the same string.
+          break;
+        }
+      }
+
+      // 2. Concept Expansion (Semantic Lite)
       // Maps "vibe" words to specific search terms
       const conceptMap: Record<string, string> = {
         "scary": "subject:horror",
@@ -351,14 +405,38 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
         "love": "subject:romance",
         "fantasy": "subject:fantasy",
         "magic": "subject:fantasy",
-        "sci-fi": "subject:science fiction",
-        "space": "subject:science fiction",
+        "sci-fi": "subject:science_fiction",
+        "space": "subject:science_fiction",
         "history": "subject:history",
         "past": "subject:history",
         "rich": "subject:biography", // Heuristic
         "money": "subject:business",
         "coding": "subject:computers",
         "programming": "subject:computers",
+        "mystery": "subject:mystery",
+        "thriller": "subject:thriller",
+        "crime": "subject:crime",
+        "biography": "subject:biography",
+        "autobiography": "subject:biography",
+        "memoir": "subject:biography",
+        "cooking": "subject:cooking",
+        "food": "subject:cooking",
+        "recipes": "subject:cooking",
+        "travel": "subject:travel",
+        "places": "subject:travel",
+        "art": "subject:art",
+        "design": "subject:design",
+        "music": "subject:music",
+        "science": "subject:science",
+        "nature": "subject:nature",
+        "business": "subject:business",
+        "finance": "subject:business",
+        "self-help": "subject:self_help",
+        "motivation": "subject:self_help",
+        "health": "subject:health",
+        "fitness": "subject:health",
+        "kids": "subject:juvenile_fiction",
+        "children": "subject:juvenile_fiction",
       };
 
       // Check for concepts
@@ -512,7 +590,10 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
           authorSearchQuery,
           sortBy
         },
-        scrollPosition: window.scrollY
+        scrollPosition: window.scrollY,
+        viewMode,
+        sortBy,
+        isFilterOpen
       });
 
     } catch (err) {
@@ -532,7 +613,61 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       setResults([]);
     }
     setHasMore(true);
-  }, [debouncedQuery]);
+  }, [debouncedQuery, sortBy, selectedGenres, freeOnly, premiumOnly]);
+
+  // Fetch real descriptions for list view
+  useEffect(() => {
+    if (viewMode === "list" && results.length > 0) {
+      const fetchDescriptions = async () => {
+        const booksNeedingDescription = results.filter(
+          b => !b.description ||
+            b.description === "Description not available in search results." ||
+            // Check if it looks like a first sentence (heuristic: short or ends in quote/ellipsis, but simpler to just check if we haven't fetched it yet)
+            // We can add a flag to the book object, but for now let's just try to fetch if it's not explicitly marked as "fetched"
+            // Actually, let's just fetch for the top 10 visible ones to save bandwidth
+            true
+        ).slice(0, 10); // Limit to top 10 to avoid rate limits
+
+        // Filter out books we've already checked to avoid infinite loops if we store that state
+        // For simplicity, we'll just check if the description is the default or looks like a first sentence (which we can't easily distinguish without a flag)
+        // Let's assume if it's short it might be a first sentence.
+
+        // Better approach: Just fetch for the first 5 books that haven't been "enriched"
+        // We can use a local set to track enriched IDs to avoid re-fetching
+
+        const booksToEnrich = results.slice(0, 10).filter(b => !b.isDescriptionLoaded);
+
+        if (booksToEnrich.length === 0) return;
+
+        const updatedBooks = [...results];
+        let hasUpdates = false;
+
+        await Promise.all(booksToEnrich.map(async (book) => {
+          const description = await api.getBookDescription(book.id);
+          if (description) {
+            const index = updatedBooks.findIndex(b => b.id === book.id);
+            if (index !== -1) {
+              updatedBooks[index] = { ...updatedBooks[index], description, isDescriptionLoaded: true };
+              hasUpdates = true;
+            }
+          } else {
+            // Mark as loaded even if failed so we don't retry
+            const index = updatedBooks.findIndex(b => b.id === book.id);
+            if (index !== -1) {
+              updatedBooks[index] = { ...updatedBooks[index], isDescriptionLoaded: true };
+              hasUpdates = true;
+            }
+          }
+        }));
+
+        if (hasUpdates) {
+          setResults(updatedBooks);
+        }
+      };
+
+      fetchDescriptions();
+    }
+  }, [results, viewMode]);
 
 
 
@@ -637,6 +772,8 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   };
 
   const handleVoiceResult = (text: string) => {
+    setSearchQuery(text);
+    shouldShowSuggestions.current = false;
     handleSearch(text, true);
     setShowVoiceSearch(false);
   };
@@ -644,6 +781,8 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   const handleScanResult = (result: string) => {
     setShowScanner(false);
     const isbnQuery = `isbn:${result}`;
+    setSearchQuery(isbnQuery);
+    shouldShowSuggestions.current = false;
     handleSearch(isbnQuery, true);
   };
 
@@ -690,7 +829,6 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
     (freeOnly ? 1 : 0) +
     (premiumOnly ? 1 : 0) +
     (minRating > 0 ? 1 : 0) +
-    (sortBy !== "relevance" ? 1 : 0) +
     (yearStart || yearEnd ? 1 : 0) +
     (pageRange[0] > 0 || pageRange[1] < 10000 ? 1 : 0);
 
@@ -722,7 +860,10 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                 type="text"
                 placeholder="Search title, author, ISBN, or topic..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  shouldShowSuggestions.current = true;
+                }}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch(searchQuery, true)}
                 className="pl-12 pr-12 h-12 text-base"
               />
@@ -799,7 +940,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
               className="h-12 w-12 shrink-0"
               onClick={() => setShowScanner(true)}
             >
-              <Camera className="w-5 h-5" />
+              <ScanBarcode className="w-5 h-5" />
             </Button>
 
             {/* Advanced Filters */}
@@ -900,27 +1041,6 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
 
                       <Separator className="bg-gray-100 dark:bg-gray-800" />
 
-                      {/* Section 1.5: Sort Order (Moved) */}
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                          <SortAsc className="w-4 h-4 text-blue-500" />
-                          Sort By
-                        </h3>
-                        <Select value={sortBy} onValueChange={setSortBy}>
-                          <SelectTrigger className="w-full bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 dark:text-white">
-                            <SelectValue placeholder="Select sort order" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="relevance">Relevance</SelectItem>
-                            <SelectItem value="newest">Newest First</SelectItem>
-                            <SelectItem value="oldest">Oldest First</SelectItem>
-                            <SelectItem value="rating">Highest Rated</SelectItem>
-                            <SelectItem value="popularity">Most Popular</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <Separator className="bg-gray-100 dark:bg-gray-800" />
 
                       {/* Section 2: Bibliographic */}
                       <div className="space-y-4">
@@ -1337,7 +1457,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
           isLoading ? (
             <div className={viewMode === "grid" ? "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-4"}>
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <BookCardSkeleton key={i} />
+                <BookCardSkeleton key={i} viewMode={viewMode} />
               ))}
             </div>
           ) : error ? (
@@ -1363,7 +1483,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
               {results.map((book) => (
                 <Card
                   key={book.id}
-                  className={`cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:ring-2 hover:ring-blue-500/20 dark:hover:ring-blue-400/20 group bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 ${viewMode === "list" ? "p-4 flex gap-4" : "flex flex-col h-full"
+                  className={`cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-2 hover:ring-2 hover:ring-blue-500/20 dark:hover:ring-blue-400/20 group bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 ${viewMode === "list" ? "p-4 flex-row gap-4 items-start" : "flex flex-col h-full"
                     }`}
                   onClick={() => onSelectBook(book.id)}
                 >
@@ -1403,42 +1523,53 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                     </>
                   ) : (
                     <>
-                      <div className="relative w-24 h-32 flex-shrink-0">
+                      <div className="relative w-20 h-28 flex-shrink-0 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                         <ImageWithFallback
                           src={book.image}
                           alt={book.title}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-full object-contain"
                         />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-gray-900 dark:text-white line-clamp-2 font-medium">
-                            {book.title}
-                          </h3>
+                      <div className="flex-1 min-w-0 flex flex-col py-0.5 gap-2">
+                        <div>
+                          <div className="flex items-start justify-between gap-4">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white line-clamp-1 group-hover:text-blue-600 transition-colors">
+                              {book.title}
+                            </h3>
+                            <div className="flex items-center gap-1 shrink-0 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded-lg">
+                              <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs font-bold text-yellow-700 dark:text-yellow-400">{book.rating || "N/A"}</span>
+                            </div>
+                          </div>
+
+                          <p className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                            {book.author}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {book.author}
-                        </p>
-                        <div className="flex flex-wrap gap-2 mb-2">
-                          {book.genre && book.genre.slice(0, 2).map((g, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
+
+                        {/* Description */}
+                        {book.description && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed text-justify hyphens-auto">
+                            {cleanDescription(typeof book.description === 'string' ? book.description : "No description available.")}
+                          </p>
+                        )}
+
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {book.genre && book.genre.slice(0, 3).map((g, i) => (
+                            <Badge key={i} variant="secondary" className="text-xs font-normal bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                               {g}
                             </Badge>
                           ))}
-                          <Badge variant="outline" className="text-xs">
-                            {book.pageCount} pages
-                          </Badge>
+                          {book.pageCount && (
+                            <Badge variant="secondary" className="text-xs font-normal bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
+                              {book.pageCount} pages
+                            </Badge>
+                          )}
                           {book.publishedDate && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="secondary" className="text-xs font-normal bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300">
                               {book.publishedDate.substring(0, 4)}
                             </Badge>
                           )}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-sm">{book.rating || "N/A"}</span>
-                          </div>
                         </div>
                       </div>
                     </>
@@ -1482,11 +1613,13 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
           />
         )
       }
-      <BarcodeScanner
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={handleScanResult}
-      />
+      {showScanner && (
+        <BarcodeScanner
+          isOpen={showScanner}
+          onClose={() => setShowScanner(false)}
+          onScan={handleScanResult}
+        />
+      )}
     </div >
   );
 }

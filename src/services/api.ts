@@ -17,6 +17,7 @@ export interface OpenLibraryDoc {
     ratings_count?: number;
     language?: string[];
     publisher?: string[];
+    first_sentence?: string[];
 }
 
 export interface OpenLibraryWork {
@@ -53,7 +54,7 @@ const transformOpenLibraryDoc = (doc: OpenLibraryDoc): Book => {
         isFavorite: false,
         pageCount: doc.number_of_pages_median || 0,
         currentPage: 0,
-        description: "Description not available in search results.",
+        description: doc.first_sentence?.[0] || "Description not available in search results.",
         publisher: doc.publisher?.[0],
         publishedDate: doc.first_publish_year?.toString(),
         language: doc.language?.[0],
@@ -125,7 +126,7 @@ export const api = {
     // ... (keep searchBooks)
     searchBooks: async (query: string, maxResults = 40, page = 1, sort?: string): Promise<Book[]> => {
         try {
-            const fields = "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,subject,language,publisher,ratings_average,ratings_count,ratings_sortable";
+            const fields = "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,subject,language,publisher,ratings_average,ratings_count,ratings_sortable,first_sentence";
             let url = `${OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=${maxResults}&page=${page}&fields=${fields}`;
 
             if (sort) {
@@ -255,6 +256,26 @@ export const api = {
         } catch (error) {
             console.error("Failed to get recommendations:", error);
             return [];
+        }
+    },
+
+    getBookDescription: async (id: string): Promise<string | null> => {
+        try {
+            const response = await fetch(`${OPEN_LIBRARY_WORKS_URL}/works/${id}.json`);
+            if (!response.ok) return null;
+            const work = await response.json();
+
+            let description = null;
+            if (typeof work.description === 'string') {
+                description = work.description;
+            } else if (work.description?.value) {
+                description = work.description.value;
+            }
+
+            return description;
+        } catch (error) {
+            console.warn(`Failed to fetch description for ${id}`, error);
+            return null;
         }
     },
 

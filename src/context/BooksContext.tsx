@@ -59,6 +59,9 @@ interface BooksContextType {
         results: Book[];
         filters: any;
         scrollPosition: number;
+        viewMode: "grid" | "list";
+        sortBy: string;
+        isFilterOpen: boolean;
     };
     setSearchState: (state: any) => void;
 
@@ -259,7 +262,10 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         query: "",
         results: [],
         filters: {},
-        scrollPosition: 0
+        scrollPosition: 0,
+        viewMode: "grid" as "grid" | "list",
+        sortBy: "relevance",
+        isFilterOpen: false
     });
 
     // Persistent Scroll States

@@ -25,6 +25,7 @@ export interface Book {
   fullContent?: string;
   ratingsCount?: number;
   readLink?: string;
+  isDescriptionLoaded?: boolean;
 }
 
 export type SmartCollectionType =

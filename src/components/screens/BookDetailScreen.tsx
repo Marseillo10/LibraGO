@@ -22,6 +22,7 @@ import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { toast } from "sonner";
 import { useBooks } from "../../context/BooksContext";
 import { OpenLibraryReader } from "./OpenLibraryReader";
+import { cleanDescription } from "../../utils/textUtils";
 
 interface BookDetailScreenProps {
   onBack: () => void;
@@ -262,10 +263,9 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
                 </div>
 
                 <TabsContent value="description" className="mt-4">
-                  <div
-                    className="text-gray-700 dark:text-gray-300 leading-relaxed prose dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: currentBook.description || "Tidak ada deskripsi tersedia." }}
-                  />
+                  <div className="text-gray-700 dark:text-gray-300 leading-relaxed prose dark:prose-invert max-w-none whitespace-pre-line text-justify hyphens-auto">
+                    {cleanDescription(currentBook.description || "Tidak ada deskripsi tersedia.")}
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="details" className="mt-4">
