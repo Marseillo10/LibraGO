@@ -15,7 +15,7 @@ export interface BookContent {
 }
 
 const LOREM_IPSUM = `
-Preview content is not available for this book in the demo version. Please verify the book details in the collection.
+...
 `;
 
 export const generateBookContent = (book: Book): BookContent => {

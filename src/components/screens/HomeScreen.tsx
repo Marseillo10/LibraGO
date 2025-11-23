@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
@@ -28,7 +28,9 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
     isLoadingHome,
     refreshHomeData,
     library,
-    addToLibrary
+    addToLibrary,
+    dashboardScroll,
+    setDashboardScroll
   } = useBooks();
 
   const [showSwipeTutorial, setShowSwipeTutorial] = useState(false);
@@ -45,20 +47,48 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
     })[0]
     : null;
 
-  useEffect(() => {
-    setShowScrollIndicator(true);
-    window.scrollTo(0, 0);
-  }, []);
+  const scrollRef = useRef(0);
 
+  // Track scroll position
   useEffect(() => {
     const handleScroll = () => {
-      const scrollY = window.scrollY || window.pageYOffset;
-      if (scrollY > 200) {
+      scrollRef.current = window.scrollY;
+      if (window.scrollY > 200) {
         setShowScrollIndicator(false);
       }
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Restore scroll on mount and save on unmount
+  useEffect(() => {
+    // Disable browser's automatic scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    setShowScrollIndicator(true);
+
+    // Try immediate scroll
+    if (dashboardScroll > 0) {
+      window.scrollTo(0, dashboardScroll);
+
+      // Double check after a small delay in case of layout shifts
+      setTimeout(() => {
+        if (Math.abs(window.scrollY - dashboardScroll) > 50) {
+          window.scrollTo(0, dashboardScroll);
+        }
+      }, 100);
+    } else {
+      window.scrollTo(0, 0);
+    }
+
+    return () => {
+      // Use the ref value which tracks the last known scroll position
+      // This avoids issues where window.scrollY might be 0 during unmount
+      setDashboardScroll(scrollRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -373,14 +403,14 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {trendingBooks.map((book: Book, index: number) => {
                   const bookCover = (
-                    <div className="aspect-[3/4] overflow-hidden relative group">
+                    <div className="aspect-[3/4] overflow-hidden relative group bg-gray-100 dark:bg-gray-800 p-2 flex items-center justify-center">
                       <ImageWithFallback
                         src={book.image}
                         alt={book.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain shadow-sm group-hover:scale-105 transition-transform duration-300"
                       />
-                      <div className="absolute top-2 left-2">
-                        <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0 flex items-center gap-1">
+                      <div className="absolute top-2 left-2 z-10">
+                        <Badge className="bg-gradient-to-r from-orange-500 to-red-500 text-white border-0 flex items-center gap-1 shadow-md">
                           <TrendingUp className="w-3 h-3" />
                           #{index + 1}
                         </Badge>
@@ -421,7 +451,7 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
                       </div>
 
                       <Card
-                        className="hidden lg:block overflow-hidden cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+                        className="hidden lg:block overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-2 hover:ring-2 hover:ring-blue-500/20 dark:hover:ring-blue-400/20 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                         onClick={() => onSelectBook(book.id)}
                       >
                         {bookCover}
@@ -461,11 +491,11 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {recommendations.map((book: Book) => {
                   const bookCover = (
-                    <div className="aspect-[3/4] overflow-hidden">
+                    <div className="aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800 p-2 flex items-center justify-center relative group">
                       <ImageWithFallback
                         src={book.image}
                         alt={book.title}
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-contain shadow-sm group-hover:scale-105 transition-transform duration-300"
                       />
                     </div>
                   );
@@ -503,7 +533,7 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
                       </div>
 
                       <Card
-                        className="hidden lg:block overflow-hidden cursor-pointer hover:shadow-lg transition-shadow bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+                        className="hidden lg:block overflow-hidden cursor-pointer hover:shadow-xl transition-all duration-300 hover:-translate-y-2 hover:ring-2 hover:ring-blue-500/20 dark:hover:ring-blue-400/20 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                         onClick={() => onSelectBook(book.id)}
                       >
                         {bookCover}

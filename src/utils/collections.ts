@@ -21,7 +21,10 @@ export interface Book {
   language?: string;
   previewLink?: string;
   image: string;
+  iaId?: string; // Internet Archive ID for embedding
   fullContent?: string;
+  ratingsCount?: number;
+  readLink?: string;
 }
 
 export type SmartCollectionType =

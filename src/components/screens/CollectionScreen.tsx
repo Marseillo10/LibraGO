@@ -24,9 +24,51 @@ interface CollectionScreenProps {
 }
 
 export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionScreenProps) {
-  const { library, removeFromLibrary, toggleFavorite } = useBooks();
+  const { library, removeFromLibrary, toggleFavorite, collectionScroll, setCollectionScroll } = useBooks();
   const [activeTab, setActiveTab] = useState("all");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollRef = useRef(0);
+
+  // Track scroll position
+  useEffect(() => {
+    const handleScroll = () => {
+      scrollRef.current = window.scrollY;
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Restore scroll on mount and save on unmount
+  useEffect(() => {
+    // Disable browser's automatic scroll restoration
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
+    // Only restore scroll when loading is finished
+    if (!isLoading && collectionScroll > 0) {
+      window.scrollTo(0, collectionScroll);
+
+      // Double check after a small delay
+      setTimeout(() => {
+        if (Math.abs(window.scrollY - collectionScroll) > 50) {
+          window.scrollTo(0, collectionScroll);
+        }
+      }, 100);
+    } else if (!isLoading) {
+      window.scrollTo(0, 0);
+    }
+
+    return () => {
+      // Only save if we are not loading (to avoid overwriting with 0 if unmounted during load)
+      if (!isLoading) {
+        setCollectionScroll(scrollRef.current);
+      }
+    };
+  }, [isLoading]);
 
   // Enable touch scrolling for tabs
   useEffect(() => {
@@ -109,9 +151,6 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
     e.stopPropagation();
     toggleFavorite(bookId);
   };
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   // Simulate initial loading
   useEffect(() => {
@@ -205,24 +244,24 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
                     {filteredBooks.map((book) => (
                       <Card
                         key={book.id}
-                        className="overflow-hidden hover:shadow-lg transition-shadow"
+                        className="overflow-hidden hover:shadow-xl transition-all duration-300 hover:-translate-y-2 hover:ring-2 hover:ring-blue-500/20 dark:hover:ring-blue-400/20 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800"
                       >
                         <div
-                          className="aspect-[3/4] overflow-hidden cursor-pointer relative group"
+                          className="aspect-[3/4] overflow-hidden cursor-pointer relative group bg-gray-100 dark:bg-gray-800 p-2 flex items-center justify-center"
                           onClick={() => onSelectBook(book.id)}
                         >
                           <ImageWithFallback
                             src={book.image}
                             alt={book.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain shadow-sm group-hover:scale-105 transition-transform duration-300"
                           />
                           {book.isFavorite && (
-                            <div className="absolute top-2 right-2 bg-pink-500 text-white p-2 rounded-full">
-                              <Heart className="w-4 h-4 fill-current" />
+                            <div className="absolute top-2 right-2 bg-pink-500 text-white p-1.5 rounded-full shadow-lg z-10">
+                              <Heart className="w-3.5 h-3.5 fill-current" />
                             </div>
                           )}
                           {book.progress > 0 && book.progress < 100 && (
-                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200">
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-200 z-10">
                               <div
                                 className="h-full bg-blue-600"
                                 style={{ width: `${book.progress}%` }}

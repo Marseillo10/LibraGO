@@ -53,16 +53,20 @@ const HistoryScreen = () => {
       const monthIdx = d.getMonth();
       const year = d.getFullYear();
 
-      // Count books finished in this month
-      const booksCount = library.filter(b => {
-        if (!b.lastReadDate || b.progress < 100) return false;
-        const readDate = new Date(b.lastReadDate);
-        return readDate.getMonth() === monthIdx && readDate.getFullYear() === year;
-      }).length;
+      // Format: YYYY-MM
+      const monthPrefix = `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
+
+      // Aggregate pages from readingLogs for this month
+      let pagesCount = 0;
+      Object.entries(readingLogs).forEach(([dateStr, pages]) => {
+        if (dateStr.startsWith(monthPrefix)) {
+          pagesCount += pages;
+        }
+      });
 
       data.push({
         month: months[monthIdx],
-        books: booksCount
+        pages: pagesCount
       });
     }
     return data;
@@ -201,7 +205,7 @@ const HistoryScreen = () => {
               <Card className="p-6">
                 <h3 className="text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-purple-600" />
-                  Tren Bulanan
+                  Tren Halaman Bulanan
                 </h3>
                 <ResponsiveContainer width="100%" height={250}>
                   <LineChart data={monthlyData}>
@@ -209,7 +213,7 @@ const HistoryScreen = () => {
                     <XAxis dataKey="month" />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="books" stroke="#8B5CF6" strokeWidth={3} />
+                    <Line type="monotone" dataKey="pages" stroke="#8B5CF6" strokeWidth={3} />
                   </LineChart>
                 </ResponsiveContainer>
               </Card>

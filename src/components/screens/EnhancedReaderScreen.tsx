@@ -68,9 +68,11 @@ import { Switch } from "../ui/switch";
 import { toast } from "sonner";
 import { useBooks } from "../../context/BooksContext";
 import { generateBookContent, BookContent, getPageContent } from "../../utils/bookContent";
+import { getBookPageContent } from "../../services/api";
 import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { ShareQuoteDialog } from "../dialogs/ShareQuoteDialog";
+import { OpenLibraryReader } from "./OpenLibraryReader";
 
 interface ReaderScreenProps {
   onBack: () => void;
@@ -125,6 +127,8 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
   const [showTableOfContents, setShowTableOfContents] = useState(false);
   const [immersiveMode, setImmersiveMode] = useState(false);
   const [shareQuoteOpen, setShareQuoteOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"text" | "scan">("text");
+  const [isTextAvailable, setIsTextAvailable] = useState(true);
 
   // Book Content State
   const [bookContent, setBookContent] = useState<BookContent | null>(null);
@@ -163,11 +167,31 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
 
   // Update page content when page or book content changes
   useEffect(() => {
-    if (bookContent) {
-      setPageText(getPageContent(bookContent, currentPage));
+    const loadContent = async () => {
+      if (currentBook?.iaId && viewMode === "text") {
+        setPageText("Loading...");
+        setIsTextAvailable(true);
+        try {
+          const text = await getBookPageContent(currentBook.iaId, currentPage);
+          if (text) {
+            setPageText(text);
+          } else {
+            setPageText("");
+            setIsTextAvailable(false);
+          }
+        } catch (error) {
+          setPageText("");
+          setIsTextAvailable(false);
+        }
+      } else if (bookContent && viewMode === "text") {
+        setPageText(getPageContent(bookContent, currentPage));
+        setIsTextAvailable(true);
+      }
       window.scrollTo(0, 0);
-    }
-  }, [currentPage, bookContent]);
+    };
+
+    loadContent();
+  }, [currentPage, bookContent, currentBook?.iaId, viewMode]);
 
   // Update progress when page changes
   useEffect(() => {
@@ -328,7 +352,7 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
     setShowDictionary(true);
   };
 
-  if (!currentBook || !bookContent) {
+  if (!currentBook) {
     return (
       <div className="min-h-screen bg-white dark:bg-background flex flex-col items-center justify-center gap-4">
         <Loader2 className="animate-spin h-8 w-8 text-blue-600" />
@@ -337,6 +361,15 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
           Kembali ke Pustaka
         </Button>
       </div>
+    );
+  }
+
+  if (viewMode === "scan" && currentBook?.iaId) {
+    return (
+      <OpenLibraryReader
+        bookId={currentBook.iaId}
+        onClose={() => setViewMode("text")}
+      />
     );
   }
 
@@ -443,7 +476,7 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
                           variant="ghost"
                           className="w-full justify-start text-left h-auto py-3"
                           onClick={() => {
-                            setCurrentPage(chapter.page);
+                            setCurrentPage(chapter.pageStart);
                             setShowTableOfContents(false);
                           }}
                         >
@@ -452,7 +485,7 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
                               {chapter.title}
                             </span>
                             <span className="text-xs text-gray-500">
-                              Halaman {chapter.page}
+                              Halaman {chapter.pageStart}
                             </span>
                           </div>
                         </Button>
@@ -756,19 +789,36 @@ export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, 
             }}
           >
             {/* Render Structured Content */}
-            <div dangerouslySetInnerHTML={{
-              __html: pageText
-                .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-                .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-                .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline hover:text-blue-800">$1</a>')
-                .replace(/\n\n/g, '<br/><br/>')
-            }} />
+            {!isTextAvailable ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <BookOpen className="w-16 h-16 text-gray-300 mb-4" />
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
+                  Mode Teks Tidak Tersedia
+                </h3>
+                <p className="text-gray-500 max-w-md mb-6">
+                  Maaf, teks digital untuk halaman ini tidak tersedia atau dilindungi hak cipta.
+                  Silakan gunakan tampilan pindaian (scanned view) untuk membaca.
+                </p>
+                <Button onClick={() => setViewMode("scan")}>
+                  Beralih ke Tampilan Pindaian
+                </Button>
+              </div>
+            ) : (
+              <div dangerouslySetInnerHTML={{
+                __html: pageText
+                  .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+                  .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+                  .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+                  .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 underline hover:text-blue-800">$1</a>')
+                  .replace(/\n\n/g, '<br/><br/>')
+              }} />
+            )}
           </div>
 
           {/* Page Number at bottom */}
           <div className="text-center mt-12 text-sm text-gray-500">
             Page {currentPage}
+            <div className="text-xs text-gray-300 mt-1">Debug: IA ID = {currentBook.iaId}</div>
           </div>
 
           {/* Protection Status Indicator */}

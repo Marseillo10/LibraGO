@@ -41,6 +41,7 @@ interface ReaderScreenProps {
 }
 
 import { generateBookContent, getPageContent, type BookContent } from "../../utils/bookContent";
+import { getBookPageContent } from "../../services/api";
 
 export function ReaderScreen({ onBack, onNavigate, userName, userEmail }: ReaderScreenProps) {
   const { currentBook, updateBookProgress } = useBooks();
@@ -59,6 +60,8 @@ export function ReaderScreen({ onBack, onNavigate, userName, userEmail }: Reader
 
   // Initialize content
   useEffect(() => {
+    console.log("ReaderScreen currentBook:", currentBook);
+    console.log("ReaderScreen iaId:", currentBook?.iaId);
     if (currentBook) {
       const content = generateBookContent(currentBook);
       setBookContent(content);
@@ -73,11 +76,23 @@ export function ReaderScreen({ onBack, onNavigate, userName, userEmail }: Reader
 
   // Update page content
   useEffect(() => {
-    if (bookContent) {
-      setPageText(getPageContent(bookContent, currentPage));
+    const loadContent = async () => {
+      if (currentBook?.iaId) {
+        setPageText("Loading...");
+        try {
+          const text = await getBookPageContent(currentBook.iaId, currentPage);
+          setPageText(text || "No text content available for this page.");
+        } catch (error) {
+          setPageText("Error loading page content.");
+        }
+      } else if (bookContent) {
+        setPageText(getPageContent(bookContent, currentPage));
+      }
       window.scrollTo(0, 0);
-    }
-  }, [currentPage, bookContent]);
+    };
+
+    loadContent();
+  }, [currentPage, bookContent, currentBook?.iaId]);
 
   // Update progress when page changes
   useEffect(() => {
@@ -86,7 +101,7 @@ export function ReaderScreen({ onBack, onNavigate, userName, userEmail }: Reader
     }
   }, [currentPage, currentBook?.id]);
 
-  if (!currentBook || !bookContent) {
+  if (!currentBook) {
     return (
       <div className="min-h-screen bg-white dark:bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

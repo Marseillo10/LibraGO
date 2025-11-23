@@ -242,21 +242,32 @@ export default function App() {
     toast.info("Anda telah keluar dari LibraGO");
   };
 
+  // Navigation History Stack
+  const [historyStack, setHistoryStack] = useState<Screen[]>([]);
+
   const handleNavigate = (page: string) => {
+    // clear history when navigating from menu
+    setHistoryStack([]);
     setCurrentScreen(page as Screen);
   };
 
   const handleSelectBook = async (bookId: string) => {
     console.log("Selected book:", bookId);
     await fetchBookDetails(bookId);
+    // Push current screen to history before navigating
+    setHistoryStack((prev) => [...prev, currentScreen]);
     setCurrentScreen("book-detail");
   };
 
   const handleReadBook = () => {
+    // Push current screen (book-detail) to history
+    setHistoryStack((prev) => [...prev, currentScreen]);
     setCurrentScreen("reader");
   };
 
   const handleUpgrade = () => {
+    // Push current screen to history
+    setHistoryStack((prev) => [...prev, currentScreen]);
     setCurrentScreen("subscription");
   };
 
@@ -264,14 +275,29 @@ export default function App() {
     toast.success("Selamat! Anda sekarang adalah member Premium", {
       description: "Nikmati akses tanpa batas ke semua konten premium",
     });
+    // Clear history and go home
+    setHistoryStack([]);
     setCurrentScreen("home");
   };
 
   const handleBack = () => {
+    if (historyStack.length > 0) {
+      const newStack = [...historyStack];
+      const previousScreen = newStack.pop();
+      setHistoryStack(newStack);
+      if (previousScreen) {
+        setCurrentScreen(previousScreen);
+        return;
+      }
+    }
+
+    // Fallback if history is empty
     if (currentScreen === "book-detail" || currentScreen === "subscription") {
       setCurrentScreen("home");
     } else if (currentScreen === "reader") {
       setCurrentScreen("book-detail");
+    } else {
+      setCurrentScreen("home");
     }
   };
 
@@ -343,7 +369,7 @@ export default function App() {
         {/* Main Content */}
         <div className={`${isDesktop && ["home", "search", "collection", "profile", "notifications", "history", "goals", "settings", "help", "downloads", "support", "community", "publisher"].includes(currentScreen) ? (sidebarCollapsed ? "lg:pl-20" : "lg:pl-64") : ""}`}>
           {/* Dark Mode Toggle - Desktop Only, Top Right */}
-          {isDesktop && !["reader"].includes(currentScreen) && (
+          {isDesktop && !["reader", "book-detail"].includes(currentScreen) && (
             <div className="fixed top-6 right-6 z-50">
               <Button
                 variant="outline"
@@ -422,6 +448,8 @@ export default function App() {
                   onBack={handleBack}
                   onRead={handleReadBook}
                   onUpgrade={handleUpgrade}
+                  darkMode={darkMode}
+                  onToggleDarkMode={toggleDarkMode}
                 />
               </>
             )}
@@ -431,7 +459,7 @@ export default function App() {
                 <>
                   <SEO title="Reading" />
                   <EnhancedReaderScreen
-                    onBack={() => handleNavigate("home")}
+                    onBack={handleBack}
                     onNavigate={handleNavigate}
                     userName="Dr. Alisa"
                     userEmail="alisa@hospital.com"

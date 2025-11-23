@@ -14,20 +14,27 @@ import {
   Clock,
   FileText,
   Loader2,
+  Moon,
+  Sun,
+  ExternalLink,
 } from "lucide-react";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { toast } from "sonner";
 import { useBooks } from "../../context/BooksContext";
+import { OpenLibraryReader } from "./OpenLibraryReader";
 
 interface BookDetailScreenProps {
   onBack: () => void;
   onRead: () => void;
   onUpgrade: () => void;
+  darkMode?: boolean;
+  onToggleDarkMode?: () => void;
 }
 
-export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreenProps) {
+export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggleDarkMode }: BookDetailScreenProps) {
   const { currentBook, addToLibrary, removeFromLibrary, toggleFavorite, library, startDownload } = useBooks();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [showReader, setShowReader] = useState(false);
 
   useEffect(() => {
     if (currentBook) {
@@ -62,10 +69,35 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
     addToLibrary(currentBook);
   };
 
+  const handleStartReading = () => {
+    if (!isInLibrary) {
+      addToLibrary(currentBook);
+    }
+
+    if (currentBook.iaId) {
+      // Prefer internal reader (which now handles fallback)
+      onRead();
+    } else if (currentBook.readLink) {
+      window.open(currentBook.readLink, '_blank');
+    } else if (currentBook.previewLink) {
+      window.open(currentBook.previewLink, '_blank');
+    } else {
+      // Fallback if no link available, still try to open reader (might show demo content)
+      onRead();
+    }
+  };
+
   const isInLibrary = library.some(b => b.id === currentBook.id);
 
   return (
     <div className="min-h-screen bg-white dark:bg-background">
+      {showReader && currentBook.iaId && (
+        <OpenLibraryReader
+          bookId={currentBook.iaId}
+          onClose={() => setShowReader(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         <div className="px-6 py-4 flex items-center gap-4">
@@ -84,6 +116,11 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
           <Button variant="ghost" size="icon" onClick={handleShare}>
             <Share2 className="w-5 h-5" />
           </Button>
+          {onToggleDarkMode && (
+            <Button variant="ghost" size="icon" onClick={onToggleDarkMode}>
+              {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -103,32 +140,60 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
 
               {/* Action Buttons */}
               <div className="space-y-3">
-                {isInLibrary ? (
+                <Button
+                  onClick={handleStartReading}
+                  className={`w-full text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${currentBook.iaId
+                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
+                    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
+                    }`}
+                  size="lg"
+                >
+                  {currentBook.iaId ? (
+                    <>
+                      <BookOpen className="w-5 h-5 mr-2" />
+                      {currentBook.progress > 0 ? "Lanjutkan Membaca" : "Baca di Aplikasi"}
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="w-5 h-5 mr-2" />
+                      Baca di Open Library
+                    </>
+                  )}
+                </Button>
+
+                <div className={`grid gap-3 ${!isInLibrary ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {!isInLibrary && (
+                    <Button
+                      onClick={handleAddToLibrary}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Heart className="w-4 h-4 mr-2" />
+                      Simpan
+                    </Button>
+                  )}
+
                   <Button
-                    onClick={onRead}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={handleDownload}
+                    variant="outline"
+                    className="w-full"
                   >
-                    <BookOpen className="w-5 h-5 mr-2" />
-                    {currentBook.progress > 0 ? "Lanjutkan Membaca" : "Mulai Membaca"}
+                    <Download className="w-4 h-4 mr-2" />
+                    Unduh
                   </Button>
-                ) : (
+                </div>
+
+                {/* Secondary External Links */}
+                {(currentBook.readLink || currentBook.previewLink) && !currentBook.iaId && (
                   <Button
-                    onClick={handleAddToLibrary}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={() => window.open(currentBook.readLink || currentBook.previewLink, '_blank')}
+                    variant="ghost"
+                    className="w-full text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
                   >
-                    <BookOpen className="w-5 h-5 mr-2" />
-                    Tambahkan ke Pustaka
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Buka di Sumber Eksternal
                   </Button>
                 )}
-
-                <Button
-                  onClick={handleDownload}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Download className="w-5 h-5 mr-2" />
-                  Download
-                </Button>
               </div>
 
               {/* Reading Progress */}
@@ -173,7 +238,7 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade }: BookDetailScreen
                   </span>
                 </div>
                 <span className="text-gray-600 dark:text-gray-400 text-sm">
-                  (Google Books Rating)
+                  Open Library Rating
                 </span>
               </div>
 

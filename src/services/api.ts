@@ -1,91 +1,153 @@
 import { Book } from "../utils/collections";
 
-const GOOGLE_BOOKS_API_URL = "https://www.googleapis.com/books/v1/volumes";
+const OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json";
+const OPEN_LIBRARY_WORKS_URL = "https://openlibrary.org"; // Base for /works/{id}.json
+const OPEN_LIBRARY_COVERS_URL = "https://covers.openlibrary.org/b/id";
+const OPEN_LIBRARY_SUBJECTS_URL = "https://openlibrary.org/subjects";
 
-export interface GoogleBookVolumeInfo {
+export interface OpenLibraryDoc {
+    key: string;
     title: string;
-    authors?: string[];
-    description?: string;
-    imageLinks?: {
-        thumbnail?: string;
-        smallThumbnail?: string;
-        medium?: string;
-        large?: string;
-        extraLarge?: string;
-    };
-    pageCount?: number;
-    categories?: string[];
-    averageRating?: number;
-    publishedDate?: string;
-    publisher?: string;
-    previewLink?: string;
-    infoLink?: string;
-    language?: string;
+    author_name?: string[];
+    cover_i?: number;
+    first_publish_year?: number;
+    number_of_pages_median?: number;
+    subject?: string[];
+    ratings_average?: number;
+    ratings_count?: number;
+    language?: string[];
+    publisher?: string[];
 }
 
-export interface GoogleBookItem {
-    id: string;
-    volumeInfo: GoogleBookVolumeInfo;
+export interface OpenLibraryWork {
+    key: string;
+    title: string;
+    description?: string | { value: string };
+    covers?: number[];
+    subjects?: string[];
+    created?: { value: string };
+    first_publish_date?: string;
+    authors?: { author: { key: string } }[];
 }
 
-export interface GoogleBooksResponse {
-    items?: GoogleBookItem[];
-    totalItems: number;
-}
+// Helper to get cover URL
+const getCoverUrl = (coverId?: number, size: 'S' | 'M' | 'L' = 'L'): string => {
+    if (!coverId) return "https://placehold.co/128x192?text=No+Cover";
+    return `${OPEN_LIBRARY_COVERS_URL}/${coverId}-${size}.jpg`;
+};
 
-// Helper to transform Google Book to our App's Book interface
-const transformGoogleBook = (item: GoogleBookItem): Book => {
-    const { volumeInfo } = item;
-
-    // Get the best available image
-    const image = volumeInfo.imageLinks?.extraLarge ||
-        volumeInfo.imageLinks?.large ||
-        volumeInfo.imageLinks?.medium ||
-        volumeInfo.imageLinks?.thumbnail ||
-        volumeInfo.imageLinks?.smallThumbnail ||
-        "https://via.placeholder.com/128x192?text=No+Cover";
+// Helper to transform Open Library Doc (Search Result) to Book
+const transformOpenLibraryDoc = (doc: OpenLibraryDoc): Book => {
+    const id = doc.key.replace("/works/", ""); // Extract ID from key "/works/OL..."
 
     return {
-        id: item.id,
-        title: volumeInfo.title || "Untitled",
-        author: volumeInfo.authors?.join(", ") || "Unknown Author",
-        genre: volumeInfo.categories || ["Uncategorized"],
-        progress: 0, // Default for new books
-        rating: volumeInfo.averageRating || 0,
+        id: id,
+        title: doc.title,
+        author: doc.author_name?.slice(0, 3).join(", ") || "Unknown Author",
+        genre: doc.subject?.slice(0, 5) || ["Uncategorized"],
+        progress: 0,
+        rating: doc.ratings_average ? parseFloat(doc.ratings_average.toFixed(1)) : 0,
+        ratingsCount: doc.ratings_count || 0,
         addedDate: new Date(),
         tags: [],
         isFavorite: false,
-        pageCount: volumeInfo.pageCount || 0,
+        pageCount: doc.number_of_pages_median || 0,
         currentPage: 0,
-        // Extra fields for detail view (we might need to extend Book interface or just use these in UI)
-        description: volumeInfo.description || "No description available.",
-        publisher: volumeInfo.publisher,
-        publishedDate: volumeInfo.publishedDate,
-        language: volumeInfo.language,
-        previewLink: volumeInfo.previewLink,
-        image: image.replace("http://", "https://"), // Ensure HTTPS
-    } as Book & { description?: string; publisher?: string; publishedDate?: string; previewLink?: string; image: string };
+        description: "Description not available in search results.",
+        publisher: doc.publisher?.[0],
+        publishedDate: doc.first_publish_year?.toString(),
+        language: doc.language?.[0],
+        previewLink: `https://openlibrary.org${doc.key}`,
+        image: getCoverUrl(doc.cover_i),
+        iaId: undefined,
+    } as Book;
+};
+
+// Helper to transform Open Library Work (Details) to Book
+const transformOpenLibraryWork = (work: OpenLibraryWork, authorName?: string): Book => {
+    const id = work.key.replace("/works/", "");
+
+    let description = "No description available.";
+    if (typeof work.description === 'string') {
+        description = work.description;
+    } else if (work.description?.value) {
+        description = work.description.value;
+    }
+
+    return {
+        id: id,
+        title: work.title,
+        author: authorName || "Unknown Author",
+        genre: work.subjects?.slice(0, 5) || ["Uncategorized"],
+        progress: 0,
+        rating: 0,
+        ratingsCount: 0,
+        addedDate: new Date(),
+        tags: [],
+        isFavorite: false,
+        pageCount: 0,
+        currentPage: 0,
+        description: description,
+        publishedDate: work.first_publish_date,
+        previewLink: `https://openlibrary.org${work.key}`,
+        image: getCoverUrl(work.covers?.[0]),
+    } as Book;
+};
+
+export const getBookPageContent = async (iaId: string, page: number): Promise<string | null> => {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+        const response = await fetch(`https://api.archivelab.org/books/${iaId}/pages/${page}/ocr`, {
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            return null;
+        }
+        const data = await response.json();
+        return data.text || null;
+    } catch (error) {
+        // Don't log abort errors as they are expected timeouts
+        if (error instanceof Error && error.name === 'AbortError') {
+            console.warn(`OCR fetch timed out for book ${iaId} page ${page}`);
+            return null;
+        }
+        console.error("Error fetching book page content:", error);
+        return null;
+    }
 };
 
 export const api = {
-    searchBooks: async (query: string, maxResults = 20, startIndex = 0, langRestrict = "", orderBy = "relevance"): Promise<Book[]> => {
+    // ... (keep searchBooks)
+    searchBooks: async (query: string, maxResults = 40, page = 1, sort?: string): Promise<Book[]> => {
         try {
-            let url = `${GOOGLE_BOOKS_API_URL}?q=${encodeURIComponent(query)}&maxResults=${maxResults}&startIndex=${startIndex}&printType=books&orderBy=${orderBy}`;
-            if (langRestrict) {
-                url += `&langRestrict=${langRestrict}`;
+            const fields = "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,subject,language,publisher,ratings_average,ratings_count,ratings_sortable";
+            let url = `${OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=${maxResults}&page=${page}&fields=${fields}`;
+
+            if (sort) {
+                // Map Google Books sort to Open Library sort
+                const sortMap: Record<string, string> = {
+                    "newest": "new",
+                    "oldest": "old",
+                    "rating": "rating",
+                    "random": "random"
+                };
+                const olSort = sortMap[sort] || "";
+                if (olSort) {
+                    url += `&sort=${olSort}`;
+                }
             }
 
             const response = await fetch(url);
+            const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(`API Error: ${response.statusText}`);
-            }
+            if (!data.docs) return [];
 
-            const data: GoogleBooksResponse = await response.json();
-
-            if (!data.items) return [];
-
-            return data.items.map(transformGoogleBook);
+            return data.docs.map(transformOpenLibraryDoc);
         } catch (error) {
             console.error("Failed to search books:", error);
             return [];
@@ -101,14 +163,72 @@ export const api = {
         }
 
         try {
-            const response = await fetch(`${GOOGLE_BOOKS_API_URL}/${id}`);
+            // Fetch Work details
+            const workUrl = `${OPEN_LIBRARY_WORKS_URL}/works/${id}.json`;
+            const response = await fetch(workUrl);
 
             if (!response.ok) {
                 throw new Error(`API Error: ${response.statusText}`);
             }
 
-            const data: GoogleBookItem = await response.json();
-            return transformGoogleBook(data);
+            const workData: OpenLibraryWork = await response.json();
+
+            // Fetch author name if available
+            let authorName = "Unknown Author";
+            if (workData.authors && workData.authors.length > 0) {
+                try {
+                    const authorKey = workData.authors[0].author.key;
+                    const authorResponse = await fetch(`https://openlibrary.org${authorKey}.json`);
+                    if (authorResponse.ok) {
+                        const authorData = await authorResponse.json();
+                        authorName = authorData.name;
+                    }
+                } catch (e) {
+                    console.warn("Failed to fetch author details", e);
+                }
+            }
+
+            const book = transformOpenLibraryWork(workData, authorName);
+
+            // Parallel requests: Fetch Editions (for read link) AND Search (for rating)
+            const [editionsResponse, ratingResults] = await Promise.all([
+                fetch(`${OPEN_LIBRARY_WORKS_URL}/works/${id}/editions.json?limit=20`),
+                api.searchBooks(`key:/works/${id}`, 1) // Search by key to get rating
+            ]);
+
+            // Process Ratings
+            if (ratingResults && ratingResults.length > 0) {
+                const ratingBook = ratingResults[0];
+                book.rating = ratingBook.rating;
+                book.ratingsCount = ratingBook.ratingsCount;
+            }
+
+            // Process Editions
+            try {
+                const editionsData = await editionsResponse.json();
+
+                if (editionsData.entries) {
+                    // Find an edition that has an Internet Archive identifier ('ia' or 'ocaid')
+                    // and ideally is not restricted (though API doesn't always say, 'ia' usually means there's a scan)
+                    const readableEdition = editionsData.entries.find((entry: any) => entry.ia || entry.ocaid);
+
+                    if (readableEdition) {
+                        const iaId = readableEdition.ia || readableEdition.ocaid;
+                        console.log(`Found readable edition for ${id}: ${iaId}`);
+                        // Store the IA ID for the embedded reader
+                        book.iaId = iaId;
+                        // Construct the Read link using the edition key
+                        // Example: https://openlibrary.org/books/OL123M/read
+                        book.readLink = `https://openlibrary.org${readableEdition.key}/read`;
+                    } else {
+                        console.log(`No readable edition found for ${id}`);
+                    }
+                }
+            } catch (editionError) {
+                console.warn("Failed to fetch editions for read link:", editionError);
+            }
+
+            return book;
         } catch (error) {
             console.error("Failed to get book details:", error);
             return null;
@@ -116,26 +236,11 @@ export const api = {
     },
 
     getTrendingBooks: async (): Promise<Book[]> => {
-        // Simulate trending by fetching popular categories
-        // We'll mix a few queries to get variety
         try {
-            const [fiction, tech, selfHelp] = await Promise.all([
-                api.searchBooks("subject:fiction", 4),
-                api.searchBooks("subject:computers", 4),
-                api.searchBooks("subject:self-help", 4),
-            ]);
-
-            // Interleave results for variety
-            const results: Book[] = [];
-            const maxLength = Math.max(fiction.length, tech.length, selfHelp.length);
-
-            for (let i = 0; i < maxLength; i++) {
-                if (fiction[i]) results.push(fiction[i]);
-                if (tech[i]) results.push(tech[i]);
-                if (selfHelp[i]) results.push(selfHelp[i]);
-            }
-
-            return results.slice(0, 12); // Return top 12 mixed
+            // Use search API to get books with ratings
+            // Searching for "subject:fiction" sorted by rating or random to get interesting books
+            // We use a broad search to simulate "trending" but with real data
+            return await api.searchBooks("subject:fiction", 12, 1, "rating");
         } catch (error) {
             console.error("Failed to get trending books:", error);
             return [];
@@ -143,8 +248,14 @@ export const api = {
     },
 
     getRecommendations: async (): Promise<Book[]> => {
-        // For demo, just fetch a specific interesting query
-        return api.searchBooks("subject:psychology", 6);
+        try {
+            // Use search API to get books with ratings for recommendations
+            // Searching for "subject:psychology" (or other interesting subjects)
+            return await api.searchBooks("subject:psychology", 6, 1, "rating");
+        } catch (error) {
+            console.error("Failed to get recommendations:", error);
+            return [];
+        }
     },
 
     getDemoBooks: (): Book[] => {
@@ -166,7 +277,7 @@ export const api = {
                 fullContent: `
 # Chapter I. Down the Rabbit-Hole
 
-Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it had no pictures or conversations in it, “and what is the use of a book,” thought Alice “without pictures or conversations?”
+Alice was beginning to get very tired of sitting by her sister on the bank, and of having nothing to do: once or twice she had peeped into the book her sister was reading, but it was no pictures or conversations in it, “and what is the use of a book,” thought Alice “without pictures or conversations?”
 
 So she was considering in her own mind (as well as she could, for the hot day made her feel very sleepy and stupid), whether the pleasure of making a daisy-chain would be worth the trouble of getting up and picking the daisies, when suddenly a White Rabbit with pink eyes ran close by her.
 
@@ -316,4 +427,3 @@ Mr. Bennet was so odd a mixture of quick parts, sarcastic humour, reserve, and c
         ];
     }
 };
-

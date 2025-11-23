@@ -53,6 +53,21 @@ interface BooksContextType {
     isLoadingHome: boolean;
     refreshHomeData: () => Promise<void>;
 
+    // Persistent Search State
+    searchState: {
+        query: string;
+        results: Book[];
+        filters: any;
+        scrollPosition: number;
+    };
+    setSearchState: (state: any) => void;
+
+    // Persistent Scroll States
+    dashboardScroll: number;
+    setDashboardScroll: (position: number) => void;
+    collectionScroll: number;
+    setCollectionScroll: (position: number) => void;
+
     // Current Book
     currentBook: Book | null;
     setCurrentBook: (book: Book | null) => void;
@@ -238,6 +253,18 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
     const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
     const [recommendations, setRecommendations] = useState<Book[]>([]);
     const [isLoadingHome, setIsLoadingHome] = useState(false);
+
+    // Persistent Search State
+    const [searchState, setSearchState] = useState({
+        query: "",
+        results: [],
+        filters: {},
+        scrollPosition: 0
+    });
+
+    // Persistent Scroll States
+    const [dashboardScroll, setDashboardScroll] = useState(0);
+    const [collectionScroll, setCollectionScroll] = useState(0);
 
     // Current Book State
     const [currentBook, setCurrentBook] = useState<Book | null>(null);
@@ -674,6 +701,12 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
             recommendations,
             isLoadingHome,
             refreshHomeData,
+            searchState,
+            setSearchState,
+            dashboardScroll,
+            setDashboardScroll,
+            collectionScroll,
+            setCollectionScroll,
             currentBook,
             setCurrentBook,
             fetchBookDetails,
