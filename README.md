@@ -15,13 +15,20 @@ Make sure you have the following installed on your machine:
 
 ### Installation
 
-1.  **Clone the repository** (if applicable) or navigate to the project directory.
-2.  **Install dependencies**:
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/Marseillo10/LibraGO.git
+    ```
+2.  **Navigate to the project directory**:
+    ```bash
+    cd LibraGO
+    ```
+3.  **Install dependencies**:
     ```bash
     npm install
     ```
 
-### Environment Variables
+### Environment Variables (Optional)
 
 This project uses environment variables for configuration.
 
