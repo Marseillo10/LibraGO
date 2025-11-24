@@ -6615,6 +6615,7 @@ html {
     height: 0;
   }
 }
+
 /* Custom utility for dark mode background */
 .dark\:bg-background:is(.dark *) {
   background-color: var(--background);
@@ -6625,10 +6626,12 @@ html {
 .dark .custom-dark-card {
   background-image: linear-gradient(to bottom right, #0f172a, #020617) !important;
   background-color: #020617 !important;
-  border-color: #1e293b !important; /* slate-800 */
+  border-color: #1e293b !important;
+  /* slate-800 */
 }
 
 .dark .custom-dark-stat-card {
   background-color: #020617 !important;
-  border-color: #1e293b !important; /* slate-800 */
+  border-color: #1e293b !important;
+  /* slate-800 */
 }

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
-import { Mic, MicOff, AlertCircle } from "lucide-react";
+import { Mic, MicOff, AlertCircle, RotateCcw } from "lucide-react";
 import { motion } from "motion/react";
 import { useVoiceSearch } from "../hooks/useVoiceSearch";
 
@@ -18,7 +18,8 @@ export function VoiceSearch({ onResult, onClose }: VoiceSearchProps) {
     error,
     startListening,
     stopListening,
-    isSupported
+    isSupported,
+    reset
   } = useVoiceSearch();
 
   // Auto-start listening on mount
@@ -111,7 +112,20 @@ export function VoiceSearch({ onResult, onClose }: VoiceSearchProps) {
         </p>
 
         {/* Transcript Display */}
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6 mb-8 min-h-[100px] flex items-center justify-center border border-gray-100 dark:border-gray-700">
+        <div className="relative bg-gray-50 dark:bg-gray-800 rounded-xl p-6 mb-8 min-h-[100px] flex items-center justify-center border border-gray-100 dark:border-gray-700">
+          {transcript && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                reset();
+                startListening();
+              }}
+              className="absolute top-2 right-2 h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <RotateCcw className="w-4 h-4" />
+            </Button>
+          )}
           <p className="text-lg text-gray-800 dark:text-gray-200 font-medium leading-relaxed">
             {transcript || interimTranscript || (
               <span className="text-gray-400 dark:text-gray-600 italic">

@@ -260,6 +260,13 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
     fetchSuggestions();
   }, [debouncedQuery]);
 
+  // Auto-trigger search for ISBN deep links
+  useEffect(() => {
+    if (searchQuery.startsWith("isbn:") && results.length === 0 && !isLoading) {
+      handleSearch(searchQuery, true);
+    }
+  }, [searchQuery]);
+
   const getSearchSuggestions = () => {
     if (!searchQuery.trim()) return [];
     // We now use suggestedBooks for the main suggestions, 
@@ -780,10 +787,9 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
 
   const handleScanResult = (result: string) => {
     setShowScanner(false);
-    const isbnQuery = `isbn:${result}`;
-    setSearchQuery(isbnQuery);
+    setSearchQuery(result);
     shouldShowSuggestions.current = false;
-    handleSearch(isbnQuery, true);
+    handleSearch(result, true);
   };
 
   const clearFilters = () => {

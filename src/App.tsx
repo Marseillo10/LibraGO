@@ -65,6 +65,11 @@ export default function App() {
     const path = window.location.pathname.substring(1); // Remove leading slash
     if (!path) return "login"; // Default to login if root, auth check will redirect to home
 
+    // Handle ISBN deep link
+    if (path.startsWith("isbn/")) {
+      return "search";
+    }
+
     // Map paths to screens
     const validScreens: Screen[] = [
       "login", "register", "welcome", "genre-selection", "home", "search",
@@ -106,6 +111,22 @@ export default function App() {
 
   // Online status hook
   const isOnline = useOnlineStatus();
+  const { setSearchState } = useBooks();
+
+  // Handle ISBN Deep Link
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.startsWith("/isbn/")) {
+      const isbn = path.split("/isbn/")[1];
+      if (isbn) {
+        setSearchState((prev: any) => ({
+          ...prev,
+          query: `isbn:${isbn}`,
+          results: [] // Clear previous results to trigger new search
+        }));
+      }
+    }
+  }, []);
 
   // Apply dark mode to document
   useEffect(() => {
@@ -130,7 +151,16 @@ export default function App() {
 
   // Sync URL with currentScreen
   useEffect(() => {
-    const path = currentScreen === "home" ? "/" : `/${currentScreen}`;
+    let path = "/";
+    if (currentScreen !== "home") {
+      path = `/${currentScreen}`;
+    }
+
+    // Don't overwrite ISBN path immediately if we just landed there
+    if (window.location.pathname.startsWith("/isbn/") && currentScreen === "search") {
+      return;
+    }
+
     if (window.location.pathname !== path) {
       window.history.pushState(null, "", path);
     }
@@ -142,6 +172,8 @@ export default function App() {
       const path = window.location.pathname.substring(1);
       if (!path) {
         setCurrentScreen(isLoggedIn ? "home" : "login");
+      } else if (path.startsWith("isbn/")) {
+        setCurrentScreen("search");
       } else {
         // Simple mapping, assuming path matches screen name
         setCurrentScreen(path as Screen);
@@ -193,6 +225,9 @@ export default function App() {
 
   // Effect to redirect to home if already logged in on mount
   useEffect(() => {
+    // Don't redirect if we are on a deep link like ISBN
+    if (window.location.pathname.startsWith("/isbn/")) return;
+
     if (isLoggedIn && currentScreen === "login") {
       setCurrentScreen("home");
     }
