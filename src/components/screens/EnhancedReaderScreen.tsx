@@ -550,18 +550,35 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
 
   const getMainBackground = () => {
     if (backgroundEffects && (theme === 'dark' || theme === 'night')) {
-      return "bg-transparent";
+      return {
+        backgroundImage: "url('/dark-bg.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        animation: 'subtle-pan 60s ease-in-out infinite alternate',
+      };
     }
-    return currentTheme.bg;
+    return {
+        backgroundColor: currentTheme.headerBgHex,
+    };
   };
 
   const isDarkMode = theme === 'dark' || theme === 'night';
 
   return (
-    <div className={`min-h-screen flex flex-col transition-colors duration-300 ${getMainBackground()} ${isDarkMode ? 'dark' : ''}`}>
-      {/* Animated Background */}
-      {isDarkMode && <div className="dark-animated-bg" />}
-
+    <div
+        className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'dark' : ''}`}
+        style={getMainBackground()}
+    >
+      <style>{`
+        @keyframes subtle-pan {
+          from {
+            background-position: 0% 0%;
+          }
+          to {
+            background-position: 100% 100%;
+          }
+        }
+      `}</style>
       {/* Background Effects */}
       {backgroundEffects && (theme === 'dark' || theme === 'night') && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -647,7 +664,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
                   transform: 'rotate(-45deg)',
                   top: `${Math.random() * 100}%`,
                   left: `${Math.random() * 100}%`,
-                  color: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
+                  color: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'
                 }}
               >
                 {watermark}
@@ -660,7 +677,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
         <div
           className={`
             h-full w-full px-4 md:px-8 py-8 mx-auto max-w-4xl
-            ${currentTheme.text}
+            ${backgroundEffects && isDarkMode ? 'text-white' : currentTheme.text}
             ${readingMode === 'paginated' ? 'overflow-x-auto' : 'overflow-y-auto'}
           `}
           style={{
