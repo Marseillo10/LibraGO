@@ -64,6 +64,7 @@ import { TableOfContents } from "../reader/TableOfContents";
 import { applyBionicReading } from "../../utils/textUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { ShareQuoteDialog } from "../dialogs/ShareQuoteDialog";
+import { AddNoteDialog } from "../dialogs/AddNoteDialog";
 
 interface ReaderScreenProps {
   onBack: () => void;
@@ -117,6 +118,8 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
   const [highlightedText, setHighlightedText] = useState("");
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const [currentHighlight, setCurrentHighlight] = useState<Highlight | null>(null);
 
 
   const handleShare = () => {
@@ -318,7 +321,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
     }
   };
 
-  /* const handleHighlight = (color: string) => {
+  const handleHighlight = (color: string) => {
     if (selectedText) {
       addHighlight({
         id: Date.now().toString(),
@@ -330,7 +333,22 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
       setShowHighlightMenu(false);
       setSelectedText("");
     }
-  }; */
+  };
+
+  const handleAddNote = (color: string) => {
+    if (selectedText) {
+      const newHighlight: Highlight = {
+        id: Date.now().toString(),
+        text: selectedText,
+        color,
+        page: currentPage,
+      };
+      setCurrentHighlight(newHighlight);
+      setIsNoteDialogOpen(true);
+      setShowHighlightMenu(false);
+      setSelectedText("");
+    }
+  };
 
   const toggleTTS = () => {
     setTtsPlaying(!ttsPlaying);
@@ -797,25 +815,35 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
         />
       )}
 
+      {/* Add Note Dialog */}
+      {isNoteDialogOpen && currentHighlight && (
+        <AddNoteDialog
+          open={isNoteDialogOpen}
+          onOpenChange={setIsNoteDialogOpen}
+          highlight={currentHighlight}
+          onSave={(note) => {
+            addHighlight({ ...currentHighlight, note });
+            toast.success("Note added");
+            setIsNoteDialogOpen(false);
+            setCurrentHighlight(null);
+          }}
+        />
+      )}
+
       {/* Highlight Menu */}
-      {/* {showHighlightMenu && selectedText && (
+      {showHighlightMenu && selectedText && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20" onClick={() => setShowHighlightMenu(false)}>
           <Card className="p-4 animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
             <div className="space-y-3">
               <p className="text-sm text-gray-600 dark:text-gray-400 max-w-xs truncate">"{selectedText}"</p>
               <div className="flex gap-2">
-                {['yellow', 'blue', 'green', 'pink', 'purple'].map((color) => (
-                  <button
-                    key={color}
-                    className={`w-6 h-6 rounded-full bg-${color}-400 hover:scale-110 transition-transform`}
-                    onClick={() => handleHighlight(color)}
-                  />
-                ))}
+                <Button size="sm" onClick={() => handleHighlight('yellow')}>Highlight</Button>
+                <Button size="sm" variant="outline" onClick={() => handleAddNote('yellow')}>Add Note</Button>
               </div>
             </div>
           </Card>
         </div>
-      )} */}
+      )}
     </div>
   );
 }
