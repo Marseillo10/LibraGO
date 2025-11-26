@@ -139,8 +139,30 @@ export const getBookPageContent = async (iaId: string, page: number): Promise<st
     }
 };
 
+// Helper for fetch with retry
+const fetchWithRetry = async (url: string, options: RequestInit = {}, retries = 3, backoff = 1000): Promise<Response> => {
+    try {
+        const response = await fetch(url, options);
+        if (response.status === 503 || response.status === 429) {
+            if (retries > 0) {
+                console.warn(`Retrying ${url} after ${backoff}ms (Status: ${response.status})`);
+                await new Promise(resolve => setTimeout(resolve, backoff));
+                return fetchWithRetry(url, options, retries - 1, backoff * 2);
+            }
+        }
+        return response;
+    } catch (error) {
+        if (retries > 0) {
+            console.warn(`Retrying ${url} after ${backoff}ms (Error: ${error})`);
+            await new Promise(resolve => setTimeout(resolve, backoff));
+            return fetchWithRetry(url, options, retries - 1, backoff * 2);
+        }
+        throw error;
+    }
+};
+
 export const api = {
-    // ... (keep searchBooks)
+    // Search Books
     searchBooks: async (query: string, maxResults = 40, page = 1, sort?: string, includeLowQuality = false): Promise<{ docs: Book[], numFound: number, rawCount: number }> => {
         try {
             // Request isbn field to fetch descriptions later
@@ -161,7 +183,8 @@ export const api = {
                 }
             }
 
-            const response = await fetch(url);
+            const response = await fetchWithRetry(url);
+            if (!response.ok) throw new Error(`Search failed: ${response.statusText}`);
             const data = await response.json();
 
             if (!data.docs) return { docs: [], numFound: 0, rawCount: 0 };
@@ -221,37 +244,39 @@ export const api = {
                     const bibkeys = isbnsToFetch.join(",");
                     const detailsUrl = `https://openlibrary.org/api/books?bibkeys=${bibkeys}&jscmd=details&format=json`;
 
-                    const detailsResponse = await fetch(detailsUrl);
-                    const detailsData = await detailsResponse.json();
+                    const detailsResponse = await fetchWithRetry(detailsUrl);
+                    if (detailsResponse.ok) {
+                        const detailsData = await detailsResponse.json();
 
-                    // Update books with descriptions from detailsData
-                    Object.keys(detailsData).forEach(key => {
-                        const isbn = key.replace("ISBN:", "");
-                        const bookId = isbnMap[isbn];
-                        const details = detailsData[key];
+                        // Update books with descriptions from detailsData
+                        Object.keys(detailsData).forEach(key => {
+                            const isbn = key.replace("ISBN:", "");
+                            const bookId = isbnMap[isbn];
+                            const details = detailsData[key];
 
-                        if (bookId && details.details && details.details.description) {
-                            const book = books.find((b: Book) => b.id === bookId);
-                            if (book) {
-                                let description = "";
-                                if (typeof details.details.description === 'string') {
-                                    description = details.details.description;
-                                } else if (details.details.description.value) {
-                                    description = details.details.description.value;
-                                }
+                            if (bookId && details.details && details.details.description) {
+                                const book = books.find((b: Book) => b.id === bookId);
+                                if (book) {
+                                    let description = "";
+                                    if (typeof details.details.description === 'string') {
+                                        description = details.details.description;
+                                    } else if (details.details.description.value) {
+                                        description = details.details.description.value;
+                                    }
 
-                                if (description) {
-                                    book.description = description;
+                                    if (description) {
+                                        book.description = description;
+                                    }
                                 }
                             }
-                        }
-                    });
-                } catch (detailsError) {
-                    console.warn("Failed to bulk fetch descriptions:", detailsError);
+                        });
+                    }
+                } catch (descError) {
+                    console.warn("Failed to fetch bulk descriptions:", descError);
                 }
             }
 
-            return { docs: books, numFound: data.numFound || 0, rawCount };
+            return { docs: books, numFound: data.numFound, rawCount };
         } catch (error) {
             console.error("Failed to search books:", error);
             return { docs: [], numFound: 0, rawCount: 0 };

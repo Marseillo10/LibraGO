@@ -303,15 +303,18 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
     const refreshHomeData = async () => {
         setIsLoadingHome(true);
         try {
-            const [trending, recs] = await Promise.all([
-                api.getTrendingBooks(),
-                api.getRecommendations()
-            ]);
+            // Run sequentially to avoid rate limiting (Open Library 503)
+            const trending = await api.getTrendingBooks();
             setTrendingBooks(trending);
+
+            // Small delay before next request
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const recs = await api.getRecommendations();
             setRecommendations(recs);
         } catch (error) {
             console.error("Error loading home data:", error);
-            toast.error("Gagal memuat data buku. Periksa koneksi internet Anda.");
+            toast.error("Gagal memuat data buku. Silakan coba lagi nanti.");
         } finally {
             setIsLoadingHome(false);
         }
