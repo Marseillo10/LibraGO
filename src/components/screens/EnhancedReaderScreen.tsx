@@ -369,7 +369,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
     }
   };
 
-  /* const handleToggleBookmark = () => {
+  const handleToggleBookmark = () => {
     const existingBookmark = bookmarks.find(b => b.page === currentPage);
     if (existingBookmark) {
       removeBookmark(existingBookmark.id);
@@ -384,7 +384,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
       });
       toast.success("Bookmark added");
     }
-  }; */
+  };
 
   const handleNextPage = (autoPlay = false) => {
     if (bookContent && currentPage < bookContent.totalPages) {
@@ -591,6 +591,11 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className={isDarkMode ? "dark" : ""}>
+                <DropdownMenuItem onClick={handleToggleBookmark}>
+                  {bookmarks.some(b => b.page === currentPage) ? <Bookmark className="w-4 h-4 mr-2" /> : <BookmarkPlus className="w-4 h-4 mr-2" />}
+                  <span>{bookmarks.some(b => b.page === currentPage) ? "Remove Bookmark" : "Add Bookmark"}</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleShare}>
                   <Share2 className="w-4 h-4 mr-2" />
                   <span>Share</span>
