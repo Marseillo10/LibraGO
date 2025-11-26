@@ -70,6 +70,8 @@ interface BooksContextType {
     setDashboardScroll: (position: number) => void;
     collectionScroll: number;
     setCollectionScroll: (position: number) => void;
+    collectionActiveTab: string;
+    setCollectionActiveTab: (tab: string) => void;
 
     // Current Book
     currentBook: Book | null;
@@ -273,6 +275,7 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
     // Persistent Scroll States
     const [dashboardScroll, setDashboardScroll] = useState(0);
     const [collectionScroll, setCollectionScroll] = useState(0);
+    const [collectionActiveTab, setCollectionActiveTab] = useState("all");
 
     // Current Book State
     const [currentBook, setCurrentBook] = useState<Book | null>(null);
@@ -339,6 +342,25 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         const libraryBook = library.find((b: Book) => b.id === id);
         if (libraryBook) {
             setCurrentBook(libraryBook);
+            // Background refresh for library books to get new fields
+            api.getBookDetails(id).then(fullBook => {
+                if (fullBook) {
+                    // Preserve local state (progress, currentPage, isFavorite, addedDate)
+                    const updatedBook = {
+                        ...fullBook,
+                        progress: libraryBook.progress,
+                        currentPage: libraryBook.currentPage,
+                        isFavorite: true, // Ensure it stays favorite/in library
+                        addedDate: libraryBook.addedDate,
+                        iaId: libraryBook.iaId || fullBook.iaId, // Keep existing iaId if present
+                        readLink: libraryBook.readLink || fullBook.readLink
+                    };
+
+                    setCurrentBook(updatedBook);
+                    setLibrary(prev => prev.map(b => b.id === id ? updatedBook : b));
+                }
+            }).catch(err => console.error("Failed to refresh library book details:", err));
+
             return libraryBook;
         }
 
@@ -725,6 +747,8 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
             setDashboardScroll,
             collectionScroll,
             setCollectionScroll,
+            collectionActiveTab,
+            setCollectionActiveTab,
             currentBook,
             setCurrentBook,
             fetchBookDetails,

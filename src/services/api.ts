@@ -18,6 +18,7 @@ export interface OpenLibraryDoc {
     language?: string[];
     publisher?: string[];
     first_sentence?: string[];
+    isbn?: string[];
 }
 
 export interface OpenLibraryWork {
@@ -29,6 +30,13 @@ export interface OpenLibraryWork {
     created?: { value: string };
     first_publish_date?: string;
     authors?: { author: { key: string } }[];
+    subject_places?: string[];
+    subject_people?: string[];
+    subject_times?: string[];
+    first_sentence?: { value: string } | string;
+    links?: { title: string; url: string }[];
+    subtitle?: string;
+    excerpts?: { text: string; comment?: string }[];
 }
 
 // Helper to get cover URL
@@ -61,6 +69,8 @@ const transformOpenLibraryDoc = (doc: OpenLibraryDoc): Book => {
         previewLink: `https://openlibrary.org${doc.key}`,
         image: getCoverUrl(doc.cover_i),
         iaId: undefined,
+        isbn: doc.isbn?.[0],
+        firstSentence: doc.first_sentence?.[0],
     } as Book;
 };
 
@@ -78,6 +88,7 @@ const transformOpenLibraryWork = (work: OpenLibraryWork, authorName?: string): B
     return {
         id: id,
         title: work.title,
+        subtitle: work.subtitle,
         author: authorName || "Unknown Author",
         genre: work.subjects?.slice(0, 5) || ["Uncategorized"],
         progress: 0,
@@ -92,6 +103,12 @@ const transformOpenLibraryWork = (work: OpenLibraryWork, authorName?: string): B
         publishedDate: work.first_publish_date,
         previewLink: `https://openlibrary.org${work.key}`,
         image: getCoverUrl(work.covers?.[0]),
+        subjectPlaces: work.subject_places,
+        subjectPeople: work.subject_people,
+        subjectTimes: work.subject_times,
+        firstSentence: typeof work.first_sentence === 'string' ? work.first_sentence : work.first_sentence?.value,
+        links: work.links?.filter(l => l && l.url && l.title),
+        excerpts: work.excerpts?.map(e => e.text).filter((t): t is string => !!t),
     } as Book;
 };
 
@@ -285,11 +302,28 @@ export const api = {
 
             const ratingResults = searchResult.docs;
 
-            // Process Ratings
+            // Process Ratings & Metadata from Search Result
             if (ratingResults && ratingResults.length > 0) {
                 const ratingBook = ratingResults[0];
                 book.rating = ratingBook.rating;
                 book.ratingsCount = ratingBook.ratingsCount;
+
+                // Fallback/Enhance metadata from search result (often has aggregated data like median page count)
+                if (!book.pageCount && ratingBook.pageCount) {
+                    book.pageCount = ratingBook.pageCount;
+                }
+                if (!book.publisher && ratingBook.publisher) {
+                    book.publisher = ratingBook.publisher;
+                }
+                if (!book.publishedDate && ratingBook.publishedDate) {
+                    book.publishedDate = ratingBook.publishedDate;
+                }
+                if (!book.firstSentence && ratingBook.firstSentence) {
+                    book.firstSentence = ratingBook.firstSentence;
+                }
+                if (!book.isbn && ratingBook.isbn) {
+                    book.isbn = ratingBook.isbn;
+                }
 
                 // Fallback to search result description (first_sentence) if main description is missing
                 if (book.description === "No description available." &&
@@ -318,6 +352,30 @@ export const api = {
                         book.readLink = `https://openlibrary.org${readableEdition.key}/read`;
                     } else {
                         console.log(`No readable edition found for ${id}`);
+                    }
+
+                    // Extract ISBN from any edition if not already set
+                    if (!book.isbn) {
+                        const editionWithIsbn = editionsData.entries.find((e: any) => e.isbn_13 || e.isbn_10);
+                        if (editionWithIsbn) {
+                            book.isbn = editionWithIsbn.isbn_13?.[0] || editionWithIsbn.isbn_10?.[0];
+                        }
+                    }
+
+                    // Extract Publisher if not set
+                    if (!book.publisher) {
+                        const editionWithPublisher = editionsData.entries.find((e: any) => e.publishers && e.publishers.length > 0);
+                        if (editionWithPublisher) {
+                            book.publisher = editionWithPublisher.publishers[0];
+                        }
+                    }
+
+                    // Extract Page Count if not set
+                    if (!book.pageCount) {
+                        const editionWithPages = editionsData.entries.find((e: any) => e.number_of_pages);
+                        if (editionWithPages) {
+                            book.pageCount = editionWithPages.number_of_pages;
+                        }
                     }
                 }
             } catch (editionError) {

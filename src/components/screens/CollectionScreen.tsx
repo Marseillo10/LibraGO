@@ -24,8 +24,7 @@ interface CollectionScreenProps {
 }
 
 export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionScreenProps) {
-  const { library, removeFromLibrary, toggleFavorite, collectionScroll, setCollectionScroll } = useBooks();
-  const [activeTab, setActiveTab] = useState("all");
+  const { library, removeFromLibrary, toggleFavorite, collectionScroll, setCollectionScroll, collectionActiveTab, setCollectionActiveTab } = useBooks();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -118,16 +117,16 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
   }, []);
 
   const filteredBooks = library.filter((book) => {
-    if (activeTab === "all") return true;
+    if (collectionActiveTab === "all") return true;
     // Since we don't have explicit 'status' in Book interface yet, we infer:
     // reading: progress > 0 && progress < 100
     // completed: progress === 100
     // wishlist: progress === 0 (default)
 
-    if (activeTab === "reading") return book.progress > 0 && book.progress < 100;
-    if (activeTab === "completed") return book.progress === 100;
-    if (activeTab === "wishlist") return book.progress === 0;
-    if (activeTab === "favorites") return book.isFavorite;
+    if (collectionActiveTab === "reading") return book.progress > 0 && book.progress < 100;
+    if (collectionActiveTab === "completed") return book.progress === 100;
+    if (collectionActiveTab === "wishlist") return book.progress === 0;
+    if (collectionActiveTab === "favorites") return book.isFavorite;
     return true;
   });
 
@@ -206,7 +205,7 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
           {/* Sticky Tabs - Swipeable with Labels */}
           <div className={`sticky top-[120px] lg:top-[104px] z-20 pb-4 -mx-6 px-6 lg:-mx-12 lg:px-12 mb-2 transition-colors duration-300 ${darkMode ? "bg-gray-900" : "bg-white"}`}>
             <div ref={tabsContainerRef} className="max-w-6xl mx-auto overflow-x-auto scrollbar-hide cursor-grab active:cursor-grabbing touch-pan-x">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <Tabs value={collectionActiveTab} onValueChange={setCollectionActiveTab}>
                 <TabsList className="inline-flex w-auto gap-1 h-auto py-1">
                   <TabsTrigger value="all" className="flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-1.5 min-w-[70px] sm:min-w-0 h-auto">
                     <BookOpen className="w-4 h-4 flex-shrink-0" />
@@ -234,8 +233,8 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
           </div>
 
           {/* Content */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsContent value={activeTab} className="mt-4">
+          <Tabs value={collectionActiveTab} onValueChange={setCollectionActiveTab}>
+            <TabsContent value={collectionActiveTab} className="mt-4">
               {isLoading ? (
                 <CollectionSkeleton />
               ) : (
@@ -321,12 +320,12 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
                       icon={BookOpen}
                       title="Belum ada buku"
                       description={
-                        activeTab === "all"
+                        collectionActiveTab === "all"
                           ? "Mulai tambahkan buku ke koleksi Anda dari pencarian"
-                          : `Tidak ada buku dengan status "${activeTab}"`
+                          : `Tidak ada buku dengan status "${collectionActiveTab}"`
                       }
-                      actionLabel={activeTab === "all" ? "Jelajahi Buku" : undefined}
-                      onAction={activeTab === "all" ? () => window.location.href = "/" : undefined}
+                      actionLabel={collectionActiveTab === "all" ? "Jelajahi Buku" : undefined}
+                      onAction={collectionActiveTab === "all" ? () => window.location.href = "/" : undefined}
                     />
                   )}
                 </>

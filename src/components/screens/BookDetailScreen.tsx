@@ -173,6 +173,17 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
                   )}
                 </Button>
 
+                {currentBook.iaId && (
+                  <Button
+                    onClick={() => window.open(`https://openlibrary.org/works/${currentBook.id}`, '_blank')}
+                    variant="outline"
+                    className="w-full h-11 border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Lihat di Open Library
+                  </Button>
+                )}
+
                 <div className={`grid gap-3 ${!isInLibrary ? "grid-cols-2" : "grid-cols-1"}`}>
                   {!isInLibrary && (
                     <Button
@@ -229,6 +240,12 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
                 {currentBook.author}
               </p>
 
+              {currentBook.firstSentence && (
+                <blockquote className="border-l-4 border-blue-500 pl-4 italic text-gray-700 dark:text-gray-300 mb-6 bg-gray-50 dark:bg-gray-800/50 py-2 pr-2 rounded-r">
+                  "{currentBook.firstSentence}"
+                </blockquote>
+              )}
+
               {/* Rating */}
               <div className="flex items-center gap-2 mb-4">
                 <div className="flex items-center gap-1 text-yellow-500">
@@ -283,10 +300,96 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
                       <span className="text-gray-600 dark:text-gray-400">Tanggal Terbit</span>
                       <span className="text-gray-900 dark:text-white text-right">{currentBook.publishedDate || "-"}</span>
                     </div>
+                    {/* Jumlah Halaman */}
                     <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                      <span className="text-gray-600 dark:text-gray-400">Halaman</span>
+                      <span className="text-gray-600 dark:text-gray-400">Jumlah Halaman</span>
                       <span className="text-gray-900 dark:text-white text-right">{currentBook.pageCount}</span>
                     </div>
+                    {/* ISBN */}
+                    {currentBook.isbn && (
+                      <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400">ISBN</span>
+                        <span className="text-gray-900 dark:text-white text-right font-mono">{currentBook.isbn}</span>
+                      </div>
+                    )}
+                    {/* Bahasa */}
+                    {currentBook.language && (
+                      <div className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400">Bahasa</span>
+                        <span className="text-gray-900 dark:text-white text-right capitalize">{currentBook.language}</span>
+                      </div>
+                    )}
+                    {/* Links */}
+                    {currentBook.links && currentBook.links.length > 0 && (
+                      <div className="py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Tautan Eksternal</span>
+                        <div className="flex flex-wrap gap-2 justify-end">
+                          {currentBook.links.slice(0, 3).map((link, idx) => (
+                            <a
+                              key={idx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs bg-blue-500/10 text-blue-400 px-2 py-1 rounded hover:bg-blue-500/20 transition-colors truncate max-w-full"
+                            >
+                              {link.title}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Excerpts */}
+                    {currentBook.excerpts && currentBook.excerpts.length > 0 && (
+                      <div className="py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Cuplikan</span>
+                        <div className="space-y-2">
+                          {currentBook.excerpts.slice(0, 2).map((excerpt, idx) => (
+                            <blockquote key={idx} className="text-sm italic text-white/70 border-l-2 border-blue-500 pl-3 py-1 bg-white/5 rounded-r">
+                              "{excerpt.length > 150 ? excerpt.substring(0, 150) + "..." : excerpt}"
+                            </blockquote>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* People */}
+                    {currentBook.subjectPeople && currentBook.subjectPeople.length > 0 && (
+                      <div className="py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Tokoh</span>
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {currentBook.subjectPeople.slice(0, 5).map((person, i) => (
+                            <Badge key={i} variant="outline" className="text-xs font-normal">
+                              {person}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Places */}
+                    {currentBook.subjectPlaces && currentBook.subjectPlaces.length > 0 && (
+                      <div className="py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Lokasi</span>
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {currentBook.subjectPlaces.slice(0, 5).map((place, i) => (
+                            <Badge key={i} variant="outline" className="text-xs font-normal">
+                              {place}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {/* Times */}
+                    {currentBook.subjectTimes && currentBook.subjectTimes.length > 0 && (
+                      <div className="py-2 border-b border-gray-200 dark:border-gray-700">
+                        <span className="text-gray-600 dark:text-gray-400 block mb-1">Waktu</span>
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {currentBook.subjectTimes.slice(0, 5).map((time, i) => (
+                            <Badge key={i} variant="outline" className="text-xs font-normal">
+                              {time}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 
@@ -334,3 +437,4 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
     </div >
   );
 }
+

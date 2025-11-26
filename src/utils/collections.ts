@@ -26,6 +26,14 @@ export interface Book {
   ratingsCount?: number;
   readLink?: string;
   isDescriptionLoaded?: boolean;
+  isbn?: string;
+  subjectPlaces?: string[];
+  subjectPeople?: string[];
+  subjectTimes?: string[];
+  firstSentence?: string;
+  links?: { title: string; url: string }[];
+  subtitle?: string;
+  excerpts?: string[];
 }
 
 export type SmartCollectionType =
