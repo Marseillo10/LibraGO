@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 
 // ============================================
 // KEYBOARD SHORTCUTS HOOK
@@ -19,11 +19,18 @@ export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Skip if key is not defined
       if (!e.key) return;
-      
+
+      // Ignore shortcuts when typing in input fields, unless modifiers are used
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (isInput && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        return;
+      }
+
       shortcuts.forEach((shortcut) => {
         // Skip if shortcut key is not defined
         if (!shortcut.key) return;
-        
+
         const ctrlMatch = shortcut.ctrl === undefined || shortcut.ctrl === (e.ctrlKey || e.metaKey);
         const metaMatch = shortcut.meta === undefined || shortcut.meta === (e.ctrlKey || e.metaKey);
         const shiftMatch = shortcut.shift === undefined || shortcut.shift === e.shiftKey;
@@ -212,12 +219,12 @@ export function useSearchHistory(maxItems = 10) {
   const addToHistory = useCallback(
     (query: string) => {
       if (!query.trim()) return;
-      
+
       const newHistory = [
         query,
         ...history.filter((item) => item !== query),
       ].slice(0, maxItems);
-      
+
       setHistory(newHistory);
     },
     [history, maxItems, setHistory]

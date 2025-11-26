@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
@@ -31,6 +31,7 @@ import {
   Library,
   ChevronDown,
   Heart,
+  Info,
 } from "lucide-react";
 import Fuse from 'fuse.js';
 import { BarcodeScanner } from "../ui/BarcodeScanner";
@@ -58,6 +59,12 @@ import { Label } from "../ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { ScrollArea } from "../ui/scroll-area";
 import { Separator } from "../ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "../ui/tooltip";
 import { cleanDescription } from "../../utils/textUtils";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
 import { VoiceSearch } from "../VoiceSearch";
@@ -88,6 +95,11 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   const [isFilterOpen, setIsFilterOpen] = useState(searchState.isFilterOpen || false);
   const [showVoiceSearch, setShowVoiceSearch] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [searchHistory, setSearchHistory] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const shouldShowSuggestions = useRef(true);
+
   const [viewMode, setViewMode] = useState<"grid" | "list">(searchState.viewMode || "grid");
   const [sortBy, setSortBy] = useState(searchState.filters?.sortBy || "relevance");
   const [recentSearches, setRecentSearches] = useState<string[]>(() => {
@@ -97,6 +109,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
 
   // API States
   const [results, setResults] = useState<Book[]>(searchState.results || []);
+  const [totalResults, setTotalResults] = useState<number>(searchState.totalResults || 0);
   const [displayedResults, setDisplayedResults] = useState<Book[]>(searchState.results || []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -105,6 +118,19 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   const [startIndex, setStartIndex] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Infinite Scroll Observer
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastBookElementRef = useCallback((node: HTMLDivElement) => {
+    if (isLoadingMore) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        handleLoadMore();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoadingMore, hasMore]);
 
   // Advanced Filter States
   const [selectedGenres, setSelectedGenres] = useState<string[]>(searchState.filters?.selectedGenres || []);
@@ -134,6 +160,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   const [minRating, setMinRating] = useState(searchState.filters?.minRating || 0);
   const [freeOnly, setFreeOnly] = useState(searchState.filters?.freeOnly || false);
   const [premiumOnly, setPremiumOnly] = useState(searchState.filters?.premiumOnly || false);
+  const [includeLowQuality, setIncludeLowQuality] = useState(searchState.filters?.includeLowQuality || false);
   const [authorSearchQuery, setAuthorSearchQuery] = useState(searchState.filters?.authorSearchQuery || "");
 
   const genres = ["Computer Science", "Programming", "Software Engineering", "Algorithms", "Data Structures", "AI & ML", "Design", "Business"];
@@ -229,11 +256,8 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
   // Improved Search Suggestions Logic
   const [suggestedBooks, setSuggestedBooks] = useState<Book[]>([]);
   const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
   // Ref to track if we are restoring state to prevent auto-suggestions
   const isRestoring = useRef(!!searchState.query);
-  const shouldShowSuggestions = useRef(true);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -248,7 +272,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       setShowSuggestions(true);
       try {
         // Fetch a small number of books for suggestions
-        const books = await api.searchBooks(debouncedQuery, 5);
+        const { docs: books } = await api.searchBooks(debouncedQuery, 5);
         setSuggestedBooks(books);
       } catch (error) {
         console.error("Failed to fetch suggestions", error);
@@ -344,6 +368,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
     setIsLoading(true);
     setError(null);
     setResults([]);
+    setTotalResults(0);
     setStartIndex(0);
     setHasMore(true);
 
@@ -383,8 +408,6 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
             // Let's try adding it to terms if it's a standard field, or handle specially.
             // For simplicity in this "Smart Search", let's map to our known prefixes.
             // But wait, our API wrapper takes a single query string.
-            // Let's assume the API handles 'published:YYYY' or we just add the year.
-            // Actually, looking at the code below, we construct `terms`.
             // Let's push to terms.
             // However, for 'year', we have a client-side filter `isYearFilterEnabled`.
             // Maybe we should enable that?
@@ -503,7 +526,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       // Open Library uses page number (1-based)
       const page = 1;
 
-      let books = await api.searchBooks(apiQuery, 100, page, sortBy);
+      let { docs: books, numFound, rawCount } = await api.searchBooks(apiQuery, 100, page, sortBy, includeLowQuality);
 
       // Client-side filtering for Date Range
       if (isYearFilterEnabled) {
@@ -565,13 +588,15 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       }
 
       setResults(filteredBooks);
+      setTotalResults(numFound);
       setDisplayedResults(filteredBooks);
-      setHasMore(books.length === 100);
+      setHasMore(rawCount === 100); // Use rawCount to determine if there are more pages from API
 
       // Update Context State
       setSearchState({
         query: query,
         results: filteredBooks,
+        totalResults: numFound,
         filters: {
           selectedGenres,
           selectedSubjects,
@@ -618,9 +643,10 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
     } else if (!debouncedQuery) {
       // Clear results if query is empty
       setResults([]);
+      setTotalResults(0); // Clear total results too
     }
     setHasMore(true);
-  }, [debouncedQuery, sortBy, selectedGenres, freeOnly, premiumOnly]);
+  }, [debouncedQuery, sortBy, selectedGenres, freeOnly, premiumOnly, includeLowQuality]);
 
   // Fetch real descriptions for list view
   useEffect(() => {
@@ -714,7 +740,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       // Calculate page number
       const page = Math.floor(nextIndex / 100) + 1;
 
-      const newBooks = await api.searchBooks(apiQuery, 100, page, sortBy);
+      const { docs: newBooks, rawCount } = await api.searchBooks(apiQuery, 100, page, sortBy, includeLowQuality);
 
       // Apply same client-side filters
       let filteredNewBooks = newBooks;
@@ -759,7 +785,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
       setResults(prev => [...prev, ...filteredNewBooks]);
       // displayedResults will update via useEffect when results changes
       setStartIndex(nextIndex);
-      setHasMore(newBooks.length === 100);
+      setHasMore(rawCount === 100);
     } catch (err) {
       toast.error("Gagal memuat lebih banyak buku");
     } finally {
@@ -850,7 +876,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
             <div>
               <h1 className="text-gray-900 dark:text-white">Cari Buku</h1>
               <p className="text-sm text-gray-600 dark:text-gray-400">
-                {results.length > 0 ? `${results.length.toLocaleString()} buku ditemukan` : "Temukan buku favoritmu"}
+                {results.length > 0 ? `${totalResults.toLocaleString()} buku ditemukan` : "Temukan buku favoritmu"}
               </p>
             </div>
           </div>
@@ -963,7 +989,14 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                 </Button>
               </SheetTrigger>
               <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-l border-gray-200 dark:border-gray-800 p-0">
-                <div className="flex flex-col h-full">
+                <div
+                  className="flex flex-col h-full"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      applyFilters();
+                    }
+                  }}
+                >
                   <SheetHeader className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
                     <div className="flex items-center justify-between">
                       <SheetTitle className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
@@ -1207,6 +1240,8 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                         </div>
 
 
+
+
                         {/* Language (Moved to Bottom) */}
                         <div className="space-y-2">
                           <Label className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
@@ -1243,7 +1278,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                       className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg shadow-blue-500/25"
                       onClick={() => {
                         setIsFilterOpen(false);
-                        handleSearch(searchQuery, true);
+                        handleSearch(searchQuery);
                       }}
                     >
                       Apply Filters
@@ -1292,6 +1327,7 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                       variant="secondary"
                       className="cursor-pointer px-4 py-2 rounded-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all group"
                       onClick={() => {
+                        shouldShowSuggestions.current = false;
                         setSearchQuery(search);
                         handleSearch(search, true);
                       }}
@@ -1385,11 +1421,42 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
                 {isLoading
                   ? "Searching..."
                   : results.length > 0
-                    ? `${results.length} results found`
+                    ? `${totalResults.toLocaleString()} results found`
                     : "No results found"}
               </p>
 
               <div className="flex items-center gap-2">
+                {/* Quality Toggle */}
+                {/* Quality Toggle */}
+                <div className="flex items-center gap-2 mr-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="low-quality-main"
+                      checked={includeLowQuality}
+                      onCheckedChange={setIncludeLowQuality}
+                    />
+                    <Label htmlFor="low-quality-main" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
+                      Show All
+                    </Label>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Info className="w-3.5 h-3.5 text-gray-400 cursor-help hover:text-gray-600 dark:hover:text-gray-300 transition-colors" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-[250px] p-3">
+                          <div className="space-y-2">
+                            <p className="font-semibold text-xs">Filter Settings:</p>
+                            <div className="text-xs space-y-1">
+                              <p><span className="font-medium text-green-500">ON:</span> Includes books without cover images or author names.</p>
+                              <p><span className="font-medium text-red-500">OFF:</span> Excludes low-quality results to show only complete book entries.</p>
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+
                 {/* Sort */}
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-40">
@@ -1586,29 +1653,21 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
           )
         }
 
-        {/* Load More Button */}
-        {
-          results.length > 0 && hasMore && !isLoading && (
-            <div className="mt-8 flex justify-center">
-              <Button
-                variant="outline"
-                onClick={handleLoadMore}
-                disabled={isLoadingMore}
-                className="min-w-[200px]"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-gray-500 border-t-transparent rounded-full animate-spin mr-2" />
-                    Loading more...
-                  </>
-                ) : (
-                  "Load More Results"
-                )}
-              </Button>
-            </div>
-          )
-        }
+        {/* Infinite Scroll Sentinel */}
+        {hasMore && (
+          <div ref={lastBookElementRef} className="py-8 flex justify-center">
+            {isLoadingMore ? (
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                <span>Memuat lebih banyak...</span>
+              </div>
+            ) : (
+              <div className="h-4" />
+            )}
+          </div>
+        )}
       </div >
+
 
       {/* Voice Search Modal */}
       {

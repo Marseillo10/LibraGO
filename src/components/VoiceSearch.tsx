@@ -28,6 +28,22 @@ export function VoiceSearch({ onResult, onClose }: VoiceSearchProps) {
     return () => stopListening();
   }, [startListening, stopListening]);
 
+  // Handle Enter key to Stop & Search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && isListening) {
+        e.preventDefault();
+        stopListening();
+        if (transcript) {
+          onResult(transcript);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isListening, transcript, stopListening, onResult]);
+
   // Handle final result
   // We'll use a manual trigger or a silence timeout in a real app, 
   // but for now let's let the user click "Stop" or "Search" to confirm, 

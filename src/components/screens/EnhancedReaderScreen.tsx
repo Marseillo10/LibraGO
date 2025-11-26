@@ -105,11 +105,24 @@ interface Annotation {
 }
 
 export function EnhancedReaderScreen({ onBack, onNavigate, userName, userEmail, darkMode = false }: ReaderScreenProps) {
-  const { currentBook, updateBookProgress } = useBooks();
+  const { currentBook, updateBookProgress, fetchBookDetails } = useBooks();
   const [fontSize, setFontSize] = useState(18);
   const [lineHeight, setLineHeight] = useState(1.6);
   const [theme, setTheme] = useState(darkMode ? "dark" : "light");
   const [brightness, setBrightness] = useState(100);
+
+  useEffect(() => {
+    const loadBookFromUrl = async () => {
+      if (!currentBook) {
+        const params = new URLSearchParams(window.location.search);
+        const bookId = params.get("id");
+        if (bookId) {
+          await fetchBookDetails(bookId);
+        }
+      }
+    };
+    loadBookFromUrl();
+  }, [currentBook, fetchBookDetails]);
 
   // Initialize page from book, default to 1
   const [currentPage, setCurrentPage] = useState(1);

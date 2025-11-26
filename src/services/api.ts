@@ -124,9 +124,10 @@ export const getBookPageContent = async (iaId: string, page: number): Promise<st
 
 export const api = {
     // ... (keep searchBooks)
-    searchBooks: async (query: string, maxResults = 40, page = 1, sort?: string): Promise<Book[]> => {
+    searchBooks: async (query: string, maxResults = 40, page = 1, sort?: string, includeLowQuality = false): Promise<{ docs: Book[], numFound: number, rawCount: number }> => {
         try {
-            const fields = "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,subject,language,publisher,ratings_average,ratings_count,ratings_sortable,first_sentence";
+            // Request isbn field to fetch descriptions later
+            const fields = "key,title,author_name,cover_i,first_publish_year,number_of_pages_median,subject,language,publisher,ratings_average,ratings_count,ratings_sortable,first_sentence,isbn";
             let url = `${OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(query)}&limit=${maxResults}&page=${page}&fields=${fields}`;
 
             if (sort) {
@@ -146,12 +147,97 @@ export const api = {
             const response = await fetch(url);
             const data = await response.json();
 
-            if (!data.docs) return [];
+            if (!data.docs) return { docs: [], numFound: 0, rawCount: 0 };
 
-            return data.docs.map(transformOpenLibraryDoc);
+            const rawCount = data.docs.length;
+            let books = data.docs.map(transformOpenLibraryDoc);
+
+            // Quality Filter: Remove books without cover or author UNLESS includeLowQuality is true
+            if (!includeLowQuality) {
+                books = books.filter((book: Book) => {
+                    const hasCover = book.image && book.image !== "https://placehold.co/128x192?text=No+Cover";
+                    const hasAuthor = book.author && book.author !== "Unknown Author";
+                    return hasCover && hasAuthor;
+                });
+            }
+
+            // Deduplication: Remove duplicates based on Title + Author (fuzzy match)
+            const uniqueBooks: Book[] = [];
+            const seenKeys = new Set<string>();
+
+            books.forEach((book: Book) => {
+                // Create a unique key based on normalized title and author
+                const normalizedTitle = book.title.toLowerCase().replace(/[^\w\s]/g, "").trim();
+                const normalizedAuthor = book.author.toLowerCase().replace(/[^\w\s]/g, "").split(",")[0].trim(); // Use first author
+                const key = `${normalizedTitle}|${normalizedAuthor}`;
+
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    uniqueBooks.push(book);
+                }
+            });
+
+            books = uniqueBooks.slice(0, maxResults); // Limit back to requested size
+
+            // Bulk fetch descriptions using ISBNs
+            const isbnMap: Record<string, string> = {}; // Map ISBN to Book ID (Open Library Key)
+            const isbnsToFetch: string[] = [];
+
+            data.docs.forEach((doc: any) => {
+                if (doc.isbn && doc.isbn.length > 0) {
+                    // Use the first ISBN for the lookup
+                    const isbn = doc.isbn[0];
+                    const bookId = doc.key.replace("/works/", "");
+                    // Only fetch for books that survived filtering
+                    if (books.some((b: Book) => b.id === bookId)) {
+                        isbnMap[isbn] = bookId;
+                        isbnsToFetch.push(`ISBN:${isbn}`);
+                    }
+                }
+            });
+
+            if (isbnsToFetch.length > 0) {
+                try {
+                    // Open Library API allows multiple bibkeys, comma separated
+                    // Limit to ~20-30 to avoid URL length issues if needed, but 40 results might be okay if ISBNs are short
+                    // Let's chunk it just in case, though 40 ISBNs is roughly 40*18 = 720 chars, which is fine.
+                    const bibkeys = isbnsToFetch.join(",");
+                    const detailsUrl = `https://openlibrary.org/api/books?bibkeys=${bibkeys}&jscmd=details&format=json`;
+
+                    const detailsResponse = await fetch(detailsUrl);
+                    const detailsData = await detailsResponse.json();
+
+                    // Update books with descriptions from detailsData
+                    Object.keys(detailsData).forEach(key => {
+                        const isbn = key.replace("ISBN:", "");
+                        const bookId = isbnMap[isbn];
+                        const details = detailsData[key];
+
+                        if (bookId && details.details && details.details.description) {
+                            const book = books.find((b: Book) => b.id === bookId);
+                            if (book) {
+                                let description = "";
+                                if (typeof details.details.description === 'string') {
+                                    description = details.details.description;
+                                } else if (details.details.description.value) {
+                                    description = details.details.description.value;
+                                }
+
+                                if (description) {
+                                    book.description = description;
+                                }
+                            }
+                        }
+                    });
+                } catch (detailsError) {
+                    console.warn("Failed to bulk fetch descriptions:", detailsError);
+                }
+            }
+
+            return { docs: books, numFound: data.numFound || 0, rawCount };
         } catch (error) {
             console.error("Failed to search books:", error);
-            return [];
+            return { docs: [], numFound: 0, rawCount: 0 };
         }
     },
 
@@ -192,16 +278,25 @@ export const api = {
             const book = transformOpenLibraryWork(workData, authorName);
 
             // Parallel requests: Fetch Editions (for read link) AND Search (for rating)
-            const [editionsResponse, ratingResults] = await Promise.all([
+            const [editionsResponse, searchResult] = await Promise.all([
                 fetch(`${OPEN_LIBRARY_WORKS_URL}/works/${id}/editions.json?limit=20`),
                 api.searchBooks(`key:/works/${id}`, 1) // Search by key to get rating
             ]);
+
+            const ratingResults = searchResult.docs;
 
             // Process Ratings
             if (ratingResults && ratingResults.length > 0) {
                 const ratingBook = ratingResults[0];
                 book.rating = ratingBook.rating;
                 book.ratingsCount = ratingBook.ratingsCount;
+
+                // Fallback to search result description (first_sentence) if main description is missing
+                if (book.description === "No description available." &&
+                    ratingBook.description &&
+                    ratingBook.description !== "Description not available in search results.") {
+                    book.description = ratingBook.description;
+                }
             }
 
             // Process Editions
@@ -241,7 +336,8 @@ export const api = {
             // Use search API to get books with ratings
             // Searching for "subject:fiction" sorted by rating or random to get interesting books
             // We use a broad search to simulate "trending" but with real data
-            return await api.searchBooks("subject:fiction", 12, 1, "rating");
+            const { docs } = await api.searchBooks("subject:fiction", 12, 1, "rating");
+            return docs;
         } catch (error) {
             console.error("Failed to get trending books:", error);
             return [];
@@ -252,7 +348,8 @@ export const api = {
         try {
             // Use search API to get books with ratings for recommendations
             // Searching for "subject:psychology" (or other interesting subjects)
-            return await api.searchBooks("subject:psychology", 6, 1, "rating");
+            const { docs } = await api.searchBooks("subject:psychology", 6, 1, "rating");
+            return docs;
         } catch (error) {
             console.error("Failed to get recommendations:", error);
             return [];

@@ -44,11 +44,24 @@ import { generateBookContent, getPageContent, type BookContent } from "../../uti
 import { getBookPageContent } from "../../services/api";
 
 export function ReaderScreen({ onBack, onNavigate, userName, userEmail }: ReaderScreenProps) {
-  const { currentBook, updateBookProgress } = useBooks();
+  const { currentBook, updateBookProgress, fetchBookDetails } = useBooks();
   const [fontSize, setFontSize] = useState(16);
   const [theme, setTheme] = useState("sepia");
   const [brightness, setBrightness] = useState(100);
   const [currentPage, setCurrentPage] = useState(currentBook?.currentPage || 1);
+
+  useEffect(() => {
+    const loadBookFromUrl = async () => {
+      if (!currentBook) {
+        const params = new URLSearchParams(window.location.search);
+        const bookId = params.get("id");
+        if (bookId) {
+          await fetchBookDetails(bookId);
+        }
+      }
+    };
+    loadBookFromUrl();
+  }, [currentBook, fetchBookDetails]);
 
   // Book Content State
   const [bookContent, setBookContent] = useState<BookContent | null>(null);

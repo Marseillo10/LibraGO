@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   Star,
   BookOpen,
+  BookOpenText,
   Heart,
   Share2,
   Download,
@@ -33,9 +34,22 @@ interface BookDetailScreenProps {
 }
 
 export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggleDarkMode }: BookDetailScreenProps) {
-  const { currentBook, addToLibrary, removeFromLibrary, toggleFavorite, library, startDownload } = useBooks();
+  const { currentBook, addToLibrary, removeFromLibrary, toggleFavorite, library, startDownload, fetchBookDetails } = useBooks();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showReader, setShowReader] = useState(false);
+
+  useEffect(() => {
+    const loadBookFromUrl = async () => {
+      if (!currentBook) {
+        const params = new URLSearchParams(window.location.search);
+        const bookId = params.get("id");
+        if (bookId) {
+          await fetchBookDetails(bookId);
+        }
+      }
+    };
+    loadBookFromUrl();
+  }, [currentBook, fetchBookDetails]);
 
   useEffect(() => {
     if (currentBook) {
@@ -52,7 +66,7 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
   }
 
   const handleToggleFavorite = () => {
-    toggleFavorite(currentBook.id);
+    toggleFavorite(currentBook.id, currentBook);
     setIsFavorite(!isFavorite);
     toast.success(!isFavorite ? "Ditambahkan ke favorit" : "Dihapus dari favorit");
   };
@@ -131,11 +145,11 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
           <div className="grid lg:grid-cols-3 gap-8 mb-8">
             {/* Cover */}
             <div className="lg:col-span-1">
-              <div className="aspect-[3/4] rounded-lg overflow-hidden shadow-lg mb-4">
+              <div className="aspect-[3/4] rounded-lg overflow-hidden shadow-lg mb-4 bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                 <ImageWithFallback
                   src={currentBook.image}
                   alt={currentBook.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               </div>
 
@@ -143,15 +157,12 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
               <div className="space-y-3">
                 <Button
                   onClick={handleStartReading}
-                  className={`w-full text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] ${currentBook.iaId
-                    ? "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
-                    : "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20"
-                    }`}
+                  className="w-full h-12 text-base font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-400 shadow-blue-600/20"
                   size="lg"
                 >
                   {currentBook.iaId ? (
                     <>
-                      <BookOpen className="w-5 h-5 mr-2" />
+                      <BookOpenText className="w-5 h-5 mr-2" />
                       {currentBook.progress > 0 ? "Lanjutkan Membaca" : "Baca di Aplikasi"}
                     </>
                   ) : (
@@ -167,34 +178,22 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
                     <Button
                       onClick={handleAddToLibrary}
                       variant="outline"
-                      className="w-full"
+                      className="w-full h-11 border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                     >
-                      <Heart className="w-4 h-4 mr-2" />
-                      Simpan
+                      <BookOpen className="w-4 h-4 mr-2" />
+                      Wishlist
                     </Button>
                   )}
 
                   <Button
                     onClick={handleDownload}
                     variant="outline"
-                    className="w-full"
+                    className="w-full h-11 border-2 border-gray-900 dark:border-white text-gray-900 dark:text-white font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Unduh
                   </Button>
                 </div>
-
-                {/* Secondary External Links */}
-                {(currentBook.readLink || currentBook.previewLink) && !currentBook.iaId && (
-                  <Button
-                    onClick={() => window.open(currentBook.readLink || currentBook.previewLink, '_blank')}
-                    variant="ghost"
-                    className="w-full text-sm text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
-                  >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Buka di Sumber Eksternal
-                  </Button>
-                )}
               </div>
 
               {/* Reading Progress */}
@@ -239,7 +238,9 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
                   </span>
                 </div>
                 <span className="text-gray-600 dark:text-gray-400 text-sm">
-                  Open Library Rating
+                  {currentBook.ratingsCount
+                    ? `• ${currentBook.ratingsCount.toLocaleString()} ratings (from Open Library)`
+                    : "(Rating from Open Library)"}
                 </span>
               </div>
 
@@ -330,6 +331,6 @@ export function BookDetailScreen({ onBack, onRead, onUpgrade, darkMode, onToggle
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

@@ -1,7 +1,7 @@
 
   # LibraGO
 
-  This is a code bundle for LibraGO. The original project is available at https://www.figma.com/design/PNgNyCQgx6biznLjx9LUUV/LibraGO.
+  This is a code bundle for LibraGO. The original project is available at https://www.figma.com/design/PNgNyCQgx6biznLjx9LUUV/LibraGO
 
   ## Getting Started
 
@@ -27,24 +27,6 @@ Make sure you have the following installed on your machine:
     ```bash
     npm install
     ```
-
-### Environment Variables (Optional)
-
-This project uses environment variables for configuration.
-
-1.  Copy the example environment file:
-    ```bash
-    cp .env.example .env
-    ```
-2.  Open `.env` and update the values with your own configuration (if necessary).
-
-    ```env
-    VITE_API_URL=https://api.librago.com
-    VITE_SUPABASE_URL=your_supabase_url
-    VITE_SUPABASE_KEY=your_supabase_key
-    VITE_STRIPE_KEY=your_stripe_key
-    ```
-
 ### Running the Application
 
 To start the development server:
@@ -64,4 +46,20 @@ npm run build
 ```
 
 The built files will be generated in the `dist` directory.
-  
+
+### Environment Variables (Optional)
+
+This project uses environment variables for configuration.
+
+1.  Copy the example environment file:
+    ```bash
+    cp .env.example .env
+    ```
+2.  Open `.env` and update the values with your own configuration (it doesn't affect the current project application).
+
+    ```env
+    VITE_API_URL=https://api.librago.com
+    VITE_SUPABASE_URL=your_supabase_url
+    VITE_SUPABASE_KEY=your_supabase_key
+    VITE_STRIPE_KEY=your_stripe_key
+    ```

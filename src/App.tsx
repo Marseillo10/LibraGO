@@ -58,7 +58,7 @@ type Screen =
 import { useBooks } from "./context/BooksContext";
 
 export default function App() {
-  const { fetchBookDetails, userProfile } = useBooks();
+  const { fetchBookDetails, userProfile, currentBook } = useBooks();
 
   // Initialize screen based on URL path
   const getInitialScreen = (): Screen => {
@@ -161,10 +161,15 @@ export default function App() {
       return;
     }
 
-    if (window.location.pathname !== path) {
+    // Add book ID to URL if we're on a book-related screen
+    if ((currentScreen === "book-detail" || currentScreen === "reader") && currentBook?.id) {
+      path += `?id=${currentBook.id}`;
+    }
+
+    if (window.location.pathname + window.location.search !== path) {
       window.history.pushState(null, "", path);
     }
-  }, [currentScreen]);
+  }, [currentScreen, currentBook?.id]);
 
   // Handle browser back/forward buttons
   useEffect(() => {

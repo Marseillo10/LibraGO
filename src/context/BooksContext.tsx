@@ -42,7 +42,7 @@ interface BooksContextType {
     addToLibrary: (book: Book) => void;
     removeFromLibrary: (bookId: string) => void;
     updateBookProgress: (bookId: string, page: number) => void;
-    toggleFavorite: (bookId: string) => void;
+    toggleFavorite: (bookId: string, bookData?: Book) => void;
 
     // Search & Discovery
     searchResults: Book[];
@@ -252,6 +252,7 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
 
     // Discovery State
     const [searchResults, setSearchResults] = useState<Book[]>([]);
+    const [totalSearchResults, setTotalSearchResults] = useState(0);
     const [isSearching, setIsSearching] = useState(false);
     const [trendingBooks, setTrendingBooks] = useState<Book[]>([]);
     const [recommendations, setRecommendations] = useState<Book[]>([]);
@@ -261,6 +262,7 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
     const [searchState, setSearchState] = useState({
         query: "",
         results: [],
+        totalResults: 0,
         filters: {},
         scrollPosition: 0,
         viewMode: "grid" as "grid" | "list",
@@ -315,13 +317,15 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
     const searchBooks = async (query: string) => {
         if (!query.trim()) {
             setSearchResults([]);
+            setTotalSearchResults(0);
             return;
         }
 
         setIsSearching(true);
         try {
-            const results = await api.searchBooks(query);
-            setSearchResults(results);
+            const { docs, numFound } = await api.searchBooks(query);
+            setSearchResults(docs);
+            setTotalSearchResults(numFound);
         } catch (error) {
             console.error("Search error:", error);
             toast.error("Gagal mencari buku");
@@ -492,13 +496,21 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         checkAchievements(stats, readingLogs);
     }, [library, readingLogs]);
 
-    const toggleFavorite = (bookId: string) => {
-        setLibrary((prev: Book[]) => prev.map((b: Book) => {
-            if (b.id === bookId) {
-                return { ...b, isFavorite: !b.isFavorite };
+    const toggleFavorite = (bookId: string, bookData?: Book) => {
+        setLibrary((prev: Book[]) => {
+            const existingBook = prev.find(b => b.id === bookId);
+            if (existingBook) {
+                return prev.map(b => b.id === bookId ? { ...b, isFavorite: !b.isFavorite } : b);
+            } else if (bookData) {
+                return [{ ...bookData, isFavorite: true, progress: 0, currentPage: 0 }, ...prev];
             }
-            return b;
-        }));
+            return prev;
+        });
+
+        // Also update currentBook if it matches
+        if (currentBook && currentBook.id === bookId) {
+            setCurrentBook(prev => prev ? { ...prev, isFavorite: !prev.isFavorite } : null);
+        }
     };
 
     // Goals Logic
