@@ -750,18 +750,18 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
             variant="ghost"
             onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className={`bg-transparent border ${isDarkMode ? 'text-white border-gray-700 hover:bg-white/10' : `${currentTheme.text} ${currentTheme.border} hover:bg-black/5`}`}
+            className="bg-slate-800 text-white hover:bg-slate-700 border border-slate-700"
           >
             <ChevronLeft className="w-5 h-5 mr-2" />
             Previous
           </Button>
 
           <div className="flex flex-col items-center flex-1 mx-4">
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : currentTheme.text}`}>
+            <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
               Page {currentPage}
             </span>
             <div className="w-full max-w-xs flex items-center gap-2">
-              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : currentTheme.muted}`}>1</span>
+              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-500'}`}>1</span>
               <Slider
                 value={[currentPage]}
                 min={1}
@@ -770,7 +770,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
                 onValueChange={(val: number[]) => setCurrentPage(val[0])}
                 className="flex-1"
               />
-              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : currentTheme.muted}`}>{bookContent?.totalPages || 1}</span>
+              <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-slate-500'}`}>{bookContent?.totalPages || 1}</span>
             </div>
           </div>
 
@@ -783,7 +783,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
               variant="ghost"
               onClick={() => setCurrentPage(Math.min((bookContent?.totalPages || 1), currentPage + 1))}
               disabled={!bookContent || currentPage >= (bookContent?.totalPages || 1)}
-              className={`bg-transparent border ${isDarkMode ? 'text-white border-gray-700 hover:bg-white/10' : `${currentTheme.text} ${currentTheme.border} hover:bg-black/5`}`}
+              className="bg-slate-800 text-white hover:bg-slate-700 border border-slate-700"
             >
               Next <ChevronRight className="w-5 h-5 ml-2" />
             </Button>
