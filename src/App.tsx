@@ -32,6 +32,8 @@ import { CommandPalette } from "./components/CommandPalette";
 import { Moon, Sun, Wifi, WifiOff } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { useKeyboardShortcuts, useOnlineStatus } from "./utils/hooks";
+import { useIsMobile } from "./components/ui/use-mobile";
+import { BooksProvider } from "./context/BooksContext";
 
 type Screen =
   | "login"
@@ -56,9 +58,12 @@ type Screen =
   | "publisher";
 
 import { useBooks } from "./context/BooksContext";
+import { ReaderTheme } from "./components/reader/ReaderContext";
 
-export default function App() {
-  const { fetchBookDetails, userProfile, currentBook } = useBooks();
+function App() {
+  const { fetchBookDetails, userProfile, currentBook, readerSettings } = useBooks();
+  const [useEnhancedFeatures, setUseEnhancedFeatures] = useState(true);
+  const { theme, backgroundEffects } = readerSettings;
 
   // Initialize screen based on URL path
   const getInitialScreen = (): Screen => {
@@ -102,52 +107,24 @@ export default function App() {
     const savedMode = localStorage.getItem('librago-dark-mode');
     return savedMode !== null ? savedMode === 'true' : true;
   });
-  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
-  const [useEnhancedFeatures, setUseEnhancedFeatures] = useState(true); // Enable enhanced screens by default
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [notificationCount] = useState(3); // Mock notification count
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Online status hook
-  const isOnline = useOnlineStatus();
-  const { setSearchState } = useBooks();
-
-  // Handle ISBN Deep Link
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path.startsWith("/isbn/")) {
-      const isbn = path.split("/isbn/")[1];
-      if (isbn) {
-        setSearchState((prev: any) => ({
-          ...prev,
-          query: `isbn:${isbn}`,
-          results: [] // Clear previous results to trigger new search
-        }));
-      }
-    }
-  }, []);
+  const isDarkMode = theme === 'dark' || theme === 'night';
 
   // Apply dark mode to document
   useEffect(() => {
-    if (darkMode) {
+    if (isDarkMode) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-    // Save preference to localStorage
-    localStorage.setItem('librago-dark-mode', darkMode.toString());
-  }, [darkMode]);
+  }, [isDarkMode]);
 
-  // Handle window resize for responsive design
-  useEffect(() => {
-    const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  const isDesktop = !useIsMobile();
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const isOnline = useOnlineStatus();
 
   // Sync URL with currentScreen
   useEffect(() => {
@@ -293,10 +270,17 @@ export default function App() {
 
   const handleSelectBook = async (bookId: string) => {
     console.log("Selected book:", bookId);
-    await fetchBookDetails(bookId);
-    // Push current screen to history before navigating
-    setHistoryStack((prev) => [...prev, currentScreen]);
-    setCurrentScreen("book-detail");
+    try {
+      const book = await fetchBookDetails(bookId);
+      if (book) {
+        // Push current screen to history before navigating
+        setHistoryStack((prev) => [...prev, currentScreen]);
+        setCurrentScreen("book-detail");
+      }
+    } catch (error) {
+      console.error("Failed to fetch book details:", error);
+      toast.error("Failed to load book details. Please try again.");
+    }
   };
 
   const handleReadBook = () => {
@@ -387,7 +371,8 @@ export default function App() {
   // Main app screens
   return (
     <HelmetProvider>
-      <div className={`min-h-screen transition-colors duration-300 ${darkMode ? "dark bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
+      <div className="dark-animated-bg" />
+      <div className={`relative z-10 min-h-screen transition-colors duration-300 ${isDarkMode ? "dark bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
         <SEO />
         <Toaster position="top-center" richColors />
 
@@ -483,11 +468,17 @@ export default function App() {
 
             {currentScreen === "book-detail" && (
               <>
-                <SEO title="Book Details" />
+                <SEO title={currentBook?.title || "Book Details"} />
                 <BookDetailScreen
-                  onBack={handleBack}
+                  key={currentBook?.id}
+                  onBack={() => {
+                    // Pop from history
+                    const prevScreen = historyStack[historyStack.length - 1] || "home";
+                    setHistoryStack((prev) => prev.slice(0, -1));
+                    setCurrentScreen(prevScreen);
+                  }}
                   onRead={handleReadBook}
-                  onUpgrade={handleUpgrade}
+                  onUpgrade={() => setCurrentScreen("subscription")}
                   darkMode={darkMode}
                   onToggleDarkMode={toggleDarkMode}
                 />
@@ -525,6 +516,7 @@ export default function App() {
                 <SubscriptionScreen
                   onBack={handleBack}
                   onSubscribe={handleSubscribe}
+                  darkMode={darkMode}
                 />
               </>
             )}
@@ -532,21 +524,21 @@ export default function App() {
             {currentScreen === "notifications" && (
               <>
                 <SEO title="Notifications" />
-                <NotificationScreen />
+                <NotificationScreen darkMode={darkMode} />
               </>
             )}
 
             {currentScreen === "history" && (
               <>
                 <SEO title="Reading History" />
-                <HistoryScreen />
+                <HistoryScreen darkMode={darkMode} />
               </>
             )}
 
             {currentScreen === "goals" && (
               <>
                 <SEO title="Reading Goals" />
-                <ReadingGoalsScreen />
+                <ReadingGoalsScreen darkMode={darkMode} />
               </>
             )}
 
@@ -567,35 +559,35 @@ export default function App() {
             {currentScreen === "help" && (
               <>
                 <SEO title="Help Center" />
-                <HelpScreen />
+                <HelpScreen darkMode={darkMode} />
               </>
             )}
 
             {currentScreen === "downloads" && (
               <>
                 <SEO title="Downloads" />
-                <DownloadScreen />
+                <DownloadScreen darkMode={darkMode} />
               </>
             )}
 
             {currentScreen === "support" && (
               <>
                 <SEO title="Support Us" />
-                <SupportScreen />
+                <SupportScreen darkMode={darkMode} />
               </>
             )}
 
             {currentScreen === "community" && (
               <>
                 <SEO title="Community" />
-                <CommunityScreen />
+                <CommunityScreen darkMode={darkMode} />
               </>
             )}
 
             {currentScreen === "publisher" && (
               <>
                 <SEO title="Publisher Dashboard" />
-                <PublisherDashboard />
+                <PublisherDashboard darkMode={darkMode} />
               </>
             )}
           </div>
@@ -641,10 +633,12 @@ export default function App() {
         {!isDesktop && !isOnline && (
           <div className="fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 text-sm z-50 flex items-center justify-center gap-2">
             <WifiOff className="w-4 h-4" />
-            <span>Tidak ada koneksi internet</span>
+            <span>You are offline</span>
           </div>
         )}
       </div>
-    </HelmetProvider>
+    </HelmetProvider >
   );
 }
+
+export default App;
