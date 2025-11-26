@@ -550,7 +550,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
 
   const getMainBackground = () => {
     if (backgroundEffects && (theme === 'dark' || theme === 'night')) {
-      return "bg-[#050505]";
+      return "bg-transparent";
     }
     return currentTheme.bg;
   };
@@ -559,6 +559,9 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-300 ${getMainBackground()} ${isDarkMode ? 'dark' : ''}`}>
+      {/* Animated Background */}
+      {isDarkMode && <div className="dark-animated-bg" />}
+
       {/* Background Effects */}
       {backgroundEffects && (theme === 'dark' || theme === 'night') && (
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -644,7 +647,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
                   transform: 'rotate(-45deg)',
                   top: `${Math.random() * 100}%`,
                   left: `${Math.random() * 100}%`,
-                  color: theme === 'dark' ? 'white' : 'black'
+                  color: isDarkMode ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.5)'
                 }}
               >
                 {watermark}
