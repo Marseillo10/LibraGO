@@ -108,16 +108,16 @@ function App() {
     return savedMode !== null ? savedMode === 'true' : true;
   });
 
-  const isDarkMode = theme === 'dark' || theme === 'night';
-
   // Apply dark mode to document
   useEffect(() => {
-    if (isDarkMode) {
+    if (darkMode) {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
-  }, [isDarkMode]);
+    // Save preference to localStorage
+    localStorage.setItem('librago-dark-mode', darkMode.toString());
+  }, [darkMode]);
 
   const isDesktop = !useIsMobile();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -372,7 +372,7 @@ function App() {
   return (
     <HelmetProvider>
       <div className="dark-animated-bg" />
-      <div className={`relative z-10 min-h-screen transition-colors duration-300 ${isDarkMode ? "dark bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
+      <div className={`relative z-10 min-h-screen transition-colors duration-300 ${darkMode ? "dark bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
         <SEO />
         <Toaster position="top-center" richColors />
 
