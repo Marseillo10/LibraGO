@@ -251,7 +251,8 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
 
     const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
         const saved = localStorage.getItem('librago-reader-settings');
-        return saved ? JSON.parse(saved) : defaultReaderSettings;
+        const savedSettings = saved ? JSON.parse(saved) : {};
+        return { ...defaultReaderSettings, ...savedSettings };
     });
 
     // Persist Profile & Settings
