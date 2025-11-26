@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Book } from '../utils/collections';
 import { api } from '../services/api';
 import { toast } from 'sonner';
+import { ReaderSettings } from '../components/reader/ReaderContext';
+
 
 export interface ReadingGoal {
     id: string;
@@ -41,7 +43,7 @@ interface BooksContextType {
     library: Book[];
     addToLibrary: (book: Book) => void;
     removeFromLibrary: (bookId: string) => void;
-    updateBookProgress: (bookId: string, page: number) => void;
+    updateBookProgress: (bookId: string, page: number, totalPages?: number) => void;
     toggleFavorite: (bookId: string, bookData?: Book) => void;
 
     // Search & Discovery
@@ -99,6 +101,8 @@ interface BooksContextType {
     updateProfile: (data: Partial<UserProfile>) => void;
     settings: Settings;
     updateSettings: (data: Partial<Settings>) => void;
+    readerSettings: ReaderSettings;
+    updateReaderSettings: (data: Partial<ReaderSettings>) => void;
 
     // Downloads
     downloads: DownloadItem[];
@@ -107,6 +111,7 @@ interface BooksContextType {
     resumeDownload: (id: string) => void;
     cancelDownload: (id: string) => void;
     removeDownload: (id: string) => void;
+    syncLibrary: () => Promise<void>;
 }
 
 export interface UserProfile {
@@ -163,6 +168,27 @@ export interface DownloadItem {
     downloadedSize: string;
     quality: "high" | "medium" | "low";
 }
+
+
+export const defaultReaderSettings = {
+    theme: 'sepia',
+    fontSize: 18,
+    lineHeight: 1.6,
+    fontFamily: 'Inter',
+    brightness: 100,
+    readingMode: 'paginated',
+    backgroundEffects: false,
+    ttsSpeed: 1.0,
+    contentProtection: true,
+    bionicReading: false,
+    textAlign: 'left',
+    wordsPerPage: 250,
+    isItalic: false,
+    ttsVoice: null,
+    isContinuousReading: false,
+    bookmarks: [],
+    highlights: [],
+};
 
 const BooksContext = createContext<BooksContextType | undefined>(undefined);
 
@@ -223,6 +249,11 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         };
     });
 
+    const [readerSettings, setReaderSettings] = useState<ReaderSettings>(() => {
+        const saved = localStorage.getItem('librago-reader-settings');
+        return saved ? JSON.parse(saved) : defaultReaderSettings;
+    });
+
     // Persist Profile & Settings
     useEffect(() => {
         localStorage.setItem('librago-profile', JSON.stringify(userProfile));
@@ -232,12 +263,20 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         localStorage.setItem('librago-settings', JSON.stringify(settings));
     }, [settings]);
 
+    useEffect(() => {
+        localStorage.setItem('librago-reader-settings', JSON.stringify(readerSettings));
+    }, [readerSettings]);
+
     const updateProfile = (data: Partial<UserProfile>) => {
         setUserProfile(prev => ({ ...prev, ...data }));
     };
 
     const updateSettings = (data: Partial<Settings>) => {
         setSettings(prev => ({ ...prev, ...data }));
+    };
+
+    const updateReaderSettings = (data: Partial<ReaderSettings>) => {
+        setReaderSettings(prev => ({ ...prev, ...data }));
     };
 
     // Goals State
@@ -340,6 +379,11 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    // Monitor currentBook changes
+    // useEffect(() => {
+    //     console.log("BooksContext: currentBook changed to:", currentBook?.title, currentBook?.id);
+    // }, [currentBook]);
+
     const fetchBookDetails = async (id: string) => {
         // First check library
         const libraryBook = library.find((b: Book) => b.id === id);
@@ -359,7 +403,13 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
                         readLink: libraryBook.readLink || fullBook.readLink
                     };
 
-                    setCurrentBook(updatedBook);
+                    // Use functional update to check race condition
+                    setCurrentBook(prev => {
+                        if (prev && prev.id === id) {
+                            return updatedBook;
+                        }
+                        return prev;
+                    });
                     setLibrary(prev => prev.map(b => b.id === id ? updatedBook : b));
                 }
             }).catch(err => console.error("Failed to refresh library book details:", err));
@@ -385,6 +435,7 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Fetch from API
+        setCurrentBook(null);
         try {
             const book = await api.getBookDetails(id);
             if (book) {
@@ -467,7 +518,7 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const updateBookProgress = (bookId: string, page: number) => {
+    const updateBookProgress = (bookId: string, page: number, totalPages?: number) => {
         setLibrary((prev: Book[]) => prev.map((b: Book) => {
             if (b.id === bookId) {
                 const oldPage = b.currentPage || 0;
@@ -490,7 +541,8 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
                     });
                 }
 
-                const progress = Math.min(100, Math.round((page / b.pageCount) * 100));
+                const effectiveTotalPages = totalPages || b.pageCount;
+                const progress = Math.min(100, Math.round((page / effectiveTotalPages) * 100));
                 // Check if just completed
                 if (progress === 100 && b.progress < 100) {
                     addNotification({
@@ -502,7 +554,13 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
                         isRead: false
                     });
                 }
-                const updatedBook = { ...b, currentPage: page, progress, lastReadDate: new Date() };
+                const updatedBook = {
+                    ...b,
+                    currentPage: page,
+                    progress,
+                    lastReadDate: new Date(),
+                    pageCount: effectiveTotalPages
+                };
 
                 // Also update currentBook if it matches
                 if (currentBook && currentBook.id === bookId) {
@@ -730,6 +788,13 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
 
     const readingStats = calculateStats();
 
+    const syncLibrary = async () => {
+        toast.info("Sinkronisasi koleksi dimulai...");
+        const promises = library.map(book => fetchBookDetails(book.id));
+        await Promise.all(promises);
+        toast.success("Sinkronisasi koleksi selesai!");
+    };
+
     return (
         <BooksContext.Provider value={{
             library,
@@ -776,7 +841,10 @@ export const BooksProvider = ({ children }: { children: ReactNode }) => {
             userProfile,
             updateProfile,
             settings,
-            updateSettings
+            updateSettings,
+            readerSettings,
+            updateReaderSettings,
+            syncLibrary,
         }}>
             {children}
         </BooksContext.Provider>
