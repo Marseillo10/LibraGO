@@ -679,7 +679,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
             h-full w-full px-4 md:px-8 py-8 mx-auto ${maxWidthClass}
             ${
               backgroundEffects && isDarkMode
-                ? 'text-white'
+                ? 'text-white text-glow'
                 : currentTheme.text
             }
             ${
@@ -694,7 +694,6 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
             fontFamily: fontMap[fontFamily] || 'sans-serif',
             textAlign: textAlign,
             fontStyle: isItalic ? 'italic' : 'normal',
-            textShadow: backgroundEffects && isDarkMode ? '0 0 8px rgba(255, 255, 255, 0.8)' : 'none',
           }}
           onMouseUp={() => {
             if (!contentProtection) {
