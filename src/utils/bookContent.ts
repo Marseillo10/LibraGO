@@ -12,93 +12,141 @@ export interface BookContent {
     bookId: string;
     chapters: Chapter[];
     totalPages: number;
+    wordsPerPage: number;
+    // Store the split content to avoid re-calculating
+    paginatedContent: string[][];
 }
 
 const LOREM_IPSUM = `
 ...
 `;
 
-export const generateBookContent = (book: Book): BookContent => {
-    // If book has full content (Demo books), parse it
-    if (book.fullContent) {
-        const chapters: Chapter[] = [];
-        // Split by markdown headers (e.g. # Chapter 1)
-        // This is a simple parser for the demo content format
-        const sections = book.fullContent.split(/^# /m).filter(s => s.trim().length > 0);
+const paginateText = (text: string, wordsPerPage: number): string[] => {
+    const words = text.split(/\s+/);
+    const pages: string[] = [];
+    let currentPage: string[] = [];
 
-        let currentPage = 1;
+    for (const word of words) {
+        currentPage.push(word);
+        if (currentPage.length >= wordsPerPage) {
+            pages.push(currentPage.join(' '));
+            currentPage = [];
+        }
+    }
+
+    if (currentPage.length > 0) {
+        pages.push(currentPage.join(' '));
+    }
+
+    return pages;
+};
+
+
+export const generateBookContent = (book: Book, wordsPerPage: number = 250): BookContent => {
+    const chapters: Chapter[] = [];
+    const paginatedContent: string[][] = [];
+    let currentPageIndex = 1;
+
+    // Use full content if available (demo books)
+    if (book.fullContent) {
+        const sections = book.fullContent.split(/^# /m).filter(s => s.trim().length > 0);
 
         sections.forEach((section, index) => {
             const lines = section.split('\n');
             const title = lines[0].trim();
             const content = lines.slice(1).join('\n').trim();
-
-            // Estimate pages based on length (approx 1500 chars per page)
-            const estimatedPages = Math.max(1, Math.ceil(content.length / 1500));
+            const pages = paginateText(content, wordsPerPage);
+            
+            const pageStart = currentPageIndex;
+            const pageEnd = currentPageIndex + pages.length - 1;
 
             chapters.push({
                 id: `chapter-${index + 1}`,
                 title: title,
-                content: content,
-                pageStart: currentPage,
-                pageEnd: currentPage + estimatedPages - 1
+                content: content, // Keep original content for reference
+                pageStart,
+                pageEnd,
             });
-
-            currentPage += estimatedPages;
+            paginatedContent.push(pages);
+            currentPageIndex += pages.length;
         });
 
-        return {
-            bookId: book.id,
-            chapters,
-            totalPages: currentPage - 1, // Total pages based on content length
-        };
+    } else {
+        // Fallback for books without pre-loaded content
+        // Generate placeholder content based on description and lorem ipsum
+        const numChapters = 10;
+        const estimatedTotalWords = (book.pageCount || 100) * 250; // Standard estimate
+        const placeholderContent = Array(numChapters).fill(LOREM_IPSUM).join('\n\n');
+        const fullText = `${book.description || ''}\n\n${placeholderContent}`;
+        const pages = paginateText(fullText, wordsPerPage);
+        
+        const totalGeneratedPages = pages.length;
+        const pagesPerChapter = Math.max(1, Math.floor(totalGeneratedPages / numChapters));
+
+        for (let i = 0; i < numChapters; i++) {
+            const pageStart = currentPageIndex;
+            const isLastChapter = i === numChapters - 1;
+            
+            const chapterPageCount = isLastChapter 
+                ? totalGeneratedPages - (pageStart - 1)
+                : pagesPerChapter;
+
+            const pageEnd = pageStart + chapterPageCount - 1;
+            
+            const chapterPages = pages.slice(pageStart - 1, pageEnd);
+            const chapterContent = chapterPages.join('\n\n');
+
+            chapters.push({
+                id: `chapter-${i + 1}`,
+                title: i === 0 ? "Introduction" : `Chapter ${i}: ${getChapterTitle(i)}`,
+                content: chapterContent,
+                pageStart,
+                pageEnd,
+            });
+            paginatedContent.push(chapterPages);
+            currentPageIndex += chapterPageCount;
+        }
     }
-
-    // Fallback for books without content (Google Books API results)
-    const chapters: Chapter[] = [];
-    let currentPage = 1;
-
-    // Chapter 1: Introduction (based on description)
-    const introPages = Math.max(2, Math.floor(book.pageCount * 0.05));
-    chapters.push({
-        id: "chapter-1",
-        title: "Introduction",
-        content: `
-${book.description || "No description available."}
-
-${book.previewLink ? `[Preview this book on Google Books](${book.previewLink})` : ""}
-
-${LOREM_IPSUM}
-    `.trim(),
-        pageStart: currentPage,
-        pageEnd: currentPage + introPages - 1,
-    });
-    currentPage += introPages;
-
-    // Generate remaining chapters
-    const numChapters = 10;
-    const pagesPerChapter = Math.floor((book.pageCount - currentPage) / numChapters);
-
-    for (let i = 1; i <= numChapters; i++) {
-        const chapterPages = i === numChapters ? (book.pageCount - currentPage + 1) : pagesPerChapter;
-
-        chapters.push({
-            id: `chapter-${i + 1}`,
-            title: `Chapter ${i}: ${getChapterTitle(i)}`,
-            content: generateChapterContent(i),
-            pageStart: currentPage,
-            pageEnd: currentPage + chapterPages - 1,
-        });
-
-        currentPage += chapterPages;
-    }
-
+    
     return {
         bookId: book.id,
         chapters,
-        totalPages: book.pageCount,
+        totalPages: Math.max(1, currentPageIndex - 1),
+        wordsPerPage,
+        paginatedContent,
     };
 };
+
+export const getPageContent = (bookContent: BookContent, page: number): string => {
+    if (page < 1 || page > bookContent.totalPages) {
+        return "Invalid page number.";
+    }
+
+    const chapterIndex = bookContent.chapters.findIndex(c => page >= c.pageStart && page <= c.pageEnd);
+    
+    if (chapterIndex === -1) {
+        return "End of book.";
+    }
+
+    const chapter = bookContent.chapters[chapterIndex];
+    const chapterPages = bookContent.paginatedContent[chapterIndex];
+
+    if (!chapterPages) {
+        return "Error loading chapter content."
+    }
+
+    const relativePage = page - chapter.pageStart;
+
+    let pageText = chapterPages[relativePage] || "This page is empty.";
+
+    // Add title to first page of chapter
+    if (relativePage === 0) {
+        pageText = `# ${chapter.title}\n\n${pageText}`;
+    }
+
+    return pageText;
+};
+
 
 const getChapterTitle = (index: number): string => {
     const titles = [
@@ -116,72 +164,18 @@ const getChapterTitle = (index: number): string => {
     return titles[index - 1] || `Part ${index}`;
 };
 
-const generateChapterContent = (index: number): string => {
-    return `
-## Section ${index}.1
+// This function is no longer needed as we paginate the full text
+// const generateChapterContent = (index: number): string => { ... };
 
-${LOREM_IPSUM}
-
-${LOREM_IPSUM}
-
-## Section ${index}.2
-
-${LOREM_IPSUM}
-
-> "This is a key quote that might appear in this chapter to illustrate a point."
-
-${LOREM_IPSUM}
-  `.trim();
-};
-
-export const getPageContent = (bookContent: BookContent, page: number): string => {
-    const chapter = bookContent.chapters.find(c => page >= c.pageStart && page <= c.pageEnd);
-
-    if (!chapter) {
-        return "End of book.";
+export const calculateTotalPages = (book: Book, wordsPerPage: number): number => {
+    // This provides a quick estimate without generating full content.
+    // Useful for UI elements before the reader is fully loaded.
+    let totalWords = 0;
+    if (book.fullContent) {
+        totalWords = book.fullContent.split(/\s+/).length;
+    } else {
+        // Use the standard estimation for books without full content
+        totalWords = (book.pageCount || 100) * 250;
     }
-
-    // If it's a demo book (real content), paginate the text
-    if (!chapter.content.includes(LOREM_IPSUM)) {
-        const relativePage = page - chapter.pageStart;
-        const totalChapterPages = chapter.pageEnd - chapter.pageStart + 1;
-
-        // Simple character-based pagination
-        const charsPerPage = 1500;
-        const startIdx = relativePage * charsPerPage;
-        const endIdx = Math.min(startIdx + charsPerPage, chapter.content.length);
-
-        let pageText = chapter.content.substring(startIdx, endIdx);
-
-        // Add title to first page of chapter
-        if (relativePage === 0) {
-            pageText = `# ${chapter.title}\n\n${pageText}`;
-        } else {
-            // Ensure we don't cut words in half (simple heuristic)
-            // In a real app, we'd use a more sophisticated layout engine
-            const lastSpace = pageText.lastIndexOf(' ');
-            if (lastSpace > pageText.length - 100 && endIdx < chapter.content.length) {
-                // Adjust to nearest word boundary if not at end
-            }
-        }
-
-        return pageText;
-    }
-
-    // Fallback for dummy content
-    const relativePage = page - chapter.pageStart;
-
-    if (relativePage === 0) {
-        return `# ${chapter.title}\n\n${chapter.content}`;
-    }
-
-    return `
-### ${chapter.title} (continued)
-
-*Page ${page}*
-
-${LOREM_IPSUM}
-
-${LOREM_IPSUM}
-  `.trim();
-};
+    return Math.max(1, Math.ceil(totalWords / wordsPerPage));
+}

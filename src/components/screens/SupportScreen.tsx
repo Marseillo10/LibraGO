@@ -13,7 +13,7 @@ import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
 import { Separator } from "../ui/separator";
 import { toast } from "sonner";
 
-const SupportScreen = () => {
+const SupportScreen = ({ darkMode }: { darkMode: boolean }) => {
   const [customAmount, setCustomAmount] = useState("");
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -152,7 +152,7 @@ const SupportScreen = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
+    <div className={`min-h-screen p-4 md:p-8 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

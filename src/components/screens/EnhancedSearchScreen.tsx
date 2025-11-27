@@ -737,6 +737,11 @@ export function EnhancedSearchScreen({ onSelectBook, darkMode = false }: SearchS
 
       const apiQuery = terms.join(" ") + (selectedLanguages.length > 0 ? ` language:${selectedLanguages[0]}` : "");
 
+      if (!apiQuery.trim()) {
+        setIsLoadingMore(false);
+        return;
+      }
+
       // Calculate page number
       const page = Math.floor(nextIndex / 100) + 1;
 

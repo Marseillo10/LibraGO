@@ -11,7 +11,7 @@ import { Label } from "../ui/label";
 import { toast } from "sonner";
 import { useBooks } from "../../context/BooksContext";
 
-const DownloadScreen = () => {
+const DownloadScreen = ({ darkMode }: { darkMode: boolean }) => {
   const { downloads, pauseDownload, resumeDownload, cancelDownload, removeDownload } = useBooks();
   const [autoDownload, setAutoDownload] = useState(false);
   const [wifiOnly, setWifiOnly] = useState(true);
@@ -71,7 +71,7 @@ const DownloadScreen = () => {
   const errorDownloads = downloads.filter(d => d.status === "failed");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
+    <div className={`min-h-screen p-4 md:p-8 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

@@ -20,6 +20,7 @@ interface DashboardStatsProps {
   monthlyProgress: number;
   totalPages: number;
   achievements: number;
+  darkMode?: boolean;
 }
 
 export function DashboardStats({
@@ -29,6 +30,7 @@ export function DashboardStats({
   monthlyProgress,
   totalPages,
   achievements,
+  darkMode = false,
 }: DashboardStatsProps) {
   const stats: Stat[] = [
     {
@@ -37,7 +39,7 @@ export function DashboardStats({
       icon: <BookOpen className="w-5 h-5" />,
       trend: 12,
       color: "text-blue-600 dark:text-blue-400",
-      bgColor: "bg-blue-50 dark:bg-blue-900/20",
+      bgColor: "bg-blue-50 dark:bg-gray-900/80 backdrop-blur-md border border-blue-100 dark:border-blue-800",
     },
     {
       label: "Streak Harian",
@@ -45,14 +47,14 @@ export function DashboardStats({
       icon: <Flame className="w-5 h-5" />,
       trend: 5,
       color: "text-orange-600 dark:text-orange-400",
-      bgColor: "bg-orange-50 dark:bg-orange-900/20",
+      bgColor: "bg-orange-50 dark:bg-gray-900/80 backdrop-blur-md border border-orange-100 dark:border-orange-800",
     },
     {
       label: "Target Bulan Ini",
       value: `${monthlyProgress}/${monthlyGoal}`,
       icon: <Target className="w-5 h-5" />,
       color: "text-green-600 dark:text-green-400",
-      bgColor: "bg-green-50 dark:bg-green-900/20",
+      bgColor: "bg-green-50 dark:bg-gray-900/80 backdrop-blur-md border border-green-100 dark:border-green-800",
     },
     {
       label: "Total Halaman",
@@ -60,7 +62,7 @@ export function DashboardStats({
       icon: <Clock className="w-5 h-5" />,
       trend: 8,
       color: "text-purple-600 dark:text-purple-400",
-      bgColor: "bg-purple-50 dark:bg-purple-900/20",
+      bgColor: "bg-purple-50 dark:bg-gray-900/80 backdrop-blur-md border border-purple-100 dark:border-purple-800",
     },
   ];
 
@@ -77,7 +79,7 @@ export function DashboardStats({
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Card className={`p-4 hover:shadow-lg transition-all cursor-pointer ${stat.bgColor} border-0`}>
+            <Card className={`p-4 hover:shadow-lg transition-all cursor-pointer ${stat.bgColor}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className={`p-2 rounded-lg bg-white dark:bg-gray-800 ${stat.color}`}>
                   {stat.icon}
@@ -108,7 +110,7 @@ export function DashboardStats({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 border-0">
+        <Card className={`p-6 backdrop-blur-md border ${darkMode ? "bg-gray-900/80 border-blue-800/50" : "bg-gradient-to-br from-blue-50 to-purple-50 border-blue-100"}`}>
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-gray-900 dark:text-white mb-1">
@@ -135,7 +137,7 @@ export function DashboardStats({
             </div>
           </div>
           <Progress value={progressPercentage} className="h-3" />
-          
+
           {/* Milestones */}
           <div className="flex justify-between mt-3 text-xs text-gray-600 dark:text-gray-400">
             <span>0</span>
@@ -161,7 +163,7 @@ export function DashboardStats({
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
       >
-        <Card className="p-6 bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/10 dark:to-orange-900/10 border-0">
+        <Card className={`p-6 backdrop-blur-md border ${darkMode ? "bg-gray-900/80 border-amber-800/50" : "bg-gradient-to-br from-amber-50 to-orange-50 border-amber-100"}`}>
           <div className="flex items-center gap-4">
             <div className="p-3 bg-amber-500 rounded-full">
               <Award className="w-6 h-6 text-white" />
@@ -179,11 +181,10 @@ export function DashboardStats({
                 {[...Array(5)].map((_, i) => (
                   <Star
                     key={i}
-                    className={`w-5 h-5 ${
-                      i < Math.min(5, achievements)
-                        ? "text-amber-500 fill-amber-500"
-                        : "text-gray-300 dark:text-gray-600"
-                    }`}
+                    className={`w-5 h-5 ${i < Math.min(5, achievements)
+                      ? "text-amber-500 fill-amber-500"
+                      : "text-gray-300 dark:text-gray-600"
+                      }`}
                   />
                 ))}
               </div>
@@ -194,7 +195,7 @@ export function DashboardStats({
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4 hover:shadow-lg transition-all cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-700 bg-transparent">
+        <Card className="p-4 hover:shadow-lg transition-all cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-700 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/30">
           <div className="text-center">
             <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
               <Target className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -208,7 +209,7 @@ export function DashboardStats({
           </div>
         </Card>
 
-        <Card className="p-4 hover:shadow-lg transition-all cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-700 bg-transparent">
+        <Card className="p-4 hover:shadow-lg transition-all cursor-pointer border-2 border-dashed border-gray-300 dark:border-gray-700 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-800/30">
           <div className="text-center">
             <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
               <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />

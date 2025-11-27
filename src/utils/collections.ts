@@ -2,6 +2,25 @@
 // SMART COLLECTIONS UTILITY
 // ============================================
 
+export interface Edition {
+  key: string;
+  title: string;
+  publisher?: string;
+  publishDate?: string;
+  language?: string;
+  isbn?: string;
+  cover?: string;
+}
+
+export interface CommunityReview {
+  category: string;
+  count: number;
+  items: {
+    label: string;
+    percentage: string;
+  }[];
+}
+
 export interface Book {
   id: string;
   title: string;
@@ -34,6 +53,10 @@ export interface Book {
   links?: { title: string; url: string }[];
   subtitle?: string;
   excerpts?: string[];
+  editions?: Edition[];
+  ratingCounts?: { [key: string]: number };
+  communityReviews?: CommunityReview[];
+  openLibraryId?: string;
 }
 
 export type SmartCollectionType =

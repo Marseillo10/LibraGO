@@ -283,7 +283,7 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
                   onClick={() => onSelectBook(book.id)}
                 >
                   <div className="flex h-full">
-                    <div className="w-32 shrink-0">
+                    <div className="w-24 shrink-0">
                       <ImageWithFallback
                         src={book.image}
                         alt={book.title}
@@ -350,6 +350,7 @@ export function HomeScreen({ onSelectBook, onUpgrade, onNavigate, darkMode = fal
               monthlyProgress={library.filter(b => b.lastReadDate && new Date(b.lastReadDate).getMonth() === new Date().getMonth()).length}
               totalPages={library.reduce((acc, b) => acc + (b.currentPage || 0), 0)}
               achievements={12}
+              darkMode={darkMode}
             />
           </div>
         </div>

@@ -113,7 +113,7 @@ export function DesktopSidebar({
 
   return (
     <TooltipProvider>
-      <div className={`fixed left-0 top-0 bottom-0 ${collapsed ? "w-20" : "w-64"} bg-blue-50 dark:bg-gray-900 border-r border-blue-100 dark:border-gray-800 flex flex-col transition-all duration-300 z-40`}>
+      <div className={`fixed left-0 top-0 bottom-0 ${collapsed ? "w-20" : "w-64"} bg-blue-50 dark:bg-gray-900/80 backdrop-blur-md border-r border-blue-100 dark:border-gray-800 flex flex-col transition-all duration-300 z-40`}>
         {/* Collapse Toggle Button */}
         <button
           onClick={() => onToggleCollapse(!collapsed)}

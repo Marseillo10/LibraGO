@@ -18,7 +18,7 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { toast } from "sonner";
 
-const PublisherDashboard = () => {
+const PublisherDashboard = ({ darkMode }: { darkMode: boolean }) => {
     const [showUploadDialog, setShowUploadDialog] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -62,7 +62,7 @@ const PublisherDashboard = () => {
 
     return (
         <MobileScreenWrapper title="Publisher Dashboard">
-            <div className="min-h-screen bg-gray-50 dark:bg-background p-4 md:p-8 pb-24">
+            <div className={`min-h-screen p-4 md:p-8 pb-24 ${darkMode ? "bg-transparent" : "bg-gray-50"}`}>
                 <div className="max-w-6xl mx-auto">
                     <div className="flex items-center justify-between mb-8">
                         <div>
@@ -86,7 +86,7 @@ const PublisherDashboard = () => {
                         {stats.map((stat) => {
                             const Icon = stat.icon;
                             return (
-                                <Card key={stat.label} className="p-4">
+                                <Card key={stat.label} className="p-4 bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                                     <div className="flex items-start justify-between mb-2">
                                         <div className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-800 ${stat.color}`}>
                                             <Icon className="w-5 h-5" />
@@ -109,7 +109,7 @@ const PublisherDashboard = () => {
 
                     {/* Charts Section */}
                     <div className="grid md:grid-cols-2 gap-6 mb-8">
-                        <Card className="p-6">
+                        <Card className="p-6 bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                             <h3 className="text-lg font-semibold mb-6">Revenue Trend</h3>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -124,7 +124,7 @@ const PublisherDashboard = () => {
                             </div>
                         </Card>
 
-                        <Card className="p-6">
+                        <Card className="p-6 bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                             <h3 className="text-lg font-semibold mb-6">Reads Overview</h3>
                             <div className="h-[300px]">
                                 <ResponsiveContainer width="100%" height="100%">
@@ -141,7 +141,7 @@ const PublisherDashboard = () => {
                     </div>
 
                     {/* Top Books */}
-                    <Card className="p-6">
+                    <Card className="p-6 bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                         <h3 className="text-lg font-semibold mb-4">Top Performing Books</h3>
                         {topBooks.length > 0 ? (
                             <div className="overflow-x-auto">

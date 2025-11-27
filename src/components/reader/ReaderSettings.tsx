@@ -30,6 +30,7 @@ export function ReaderSettings({ open, onOpenChange, onNavigatePage }: { open: b
         isItalic,
         ttsVoice,
         isContinuousReading,
+        readerWidth,
         updateSettings,
         removeBookmark,
         removeHighlight,
@@ -87,15 +88,18 @@ export function ReaderSettings({ open, onOpenChange, onNavigatePage }: { open: b
     const getSwitchStyles = (t: ReaderTheme) => {
         switch (t) {
             case 'dark':
-                return "data-[state=unchecked]:!bg-gray-500 data-[state=checked]:!bg-blue-400 [&_[data-slot=switch-thumb]]:bg-white";
+                return "data-[state=unchecked]:!bg-gray-600 data-[state=checked]:!bg-blue-400 [&_[data-slot=switch-thumb]]:!bg-white";
             case 'night':
-                return "data-[state=unchecked]:!bg-slate-400 data-[state=checked]:!bg-blue-500 [&_[data-slot=switch-thumb]]:bg-white";
+                return "data-[state=unchecked]:!bg-slate-600 data-[state=checked]:!bg-blue-500 [&_[data-slot=switch-thumb]]:!bg-white";
             case 'sepia':
-                return "data-[state=unchecked]:bg-[#E6DCC6] data-[state=checked]:bg-[#8B5E3C] [&_[data-slot=switch-thumb]]:bg-[#F4ECD8]";
+                // Darker brown for unchecked to contrast with tan background
+                return "data-[state=unchecked]:!bg-[#8B5E3C] data-[state=checked]:!bg-[#5b4636] [&_[data-slot=switch-thumb]]:!bg-[#F4ECD8]";
             case 'e-ink':
-                return "data-[state=unchecked]:bg-[#a3a3a3] data-[state=checked]:bg-slate-900 [&_[data-slot=switch-thumb]]:bg-white";
+                // Black for unchecked to contrast with white/gray background
+                return "data-[state=unchecked]:!bg-black data-[state=checked]:!bg-black [&_[data-slot=switch-thumb]]:!bg-white border-2 !border-black";
             default: // light
-                return "data-[state=unchecked]:bg-slate-200 data-[state=checked]:bg-blue-600 [&_[data-slot=switch-thumb]]:bg-white";
+                // Dark slate for unchecked to contrast with white background
+                return "data-[state=unchecked]:!bg-slate-600 data-[state=checked]:!bg-blue-600 [&_[data-slot=switch-thumb]]:!bg-white";
         }
     };
 
@@ -137,12 +141,13 @@ export function ReaderSettings({ open, onOpenChange, onNavigatePage }: { open: b
                 </SheetHeader>
 
                 <Tabs key={theme} defaultValue="display" className="w-full">
-                    <TabsList className="grid w-full grid-cols-5 mb-6 p-1" style={{ backgroundColor: currentThemeStyle.muted }}>
+                    <TabsList className="grid w-full grid-cols-6 mb-6 p-1" style={{ backgroundColor: currentThemeStyle.muted }}>
                         <TabsTrigger value="display" className="tabs-trigger-custom">Display</TabsTrigger>
                         <TabsTrigger value="text" className="tabs-trigger-custom">Text</TabsTrigger>
                         <TabsTrigger value="layout" className="tabs-trigger-custom">Layout</TabsTrigger>
                         <TabsTrigger value="audio" className="tabs-trigger-custom">Audio</TabsTrigger>
                         <TabsTrigger value="notes" className="tabs-trigger-custom">Notes</TabsTrigger>
+                        <TabsTrigger value="security" className="tabs-trigger-custom">Security</TabsTrigger>
                     </TabsList>
 
                     {/* Add global style for active tab based on current theme */}
@@ -373,11 +378,36 @@ export function ReaderSettings({ open, onOpenChange, onNavigatePage }: { open: b
                             </div>
                         </div>
 
+                        {/* Reader Width */}
+                        <div className="space-y-3">
+                            <Label className="font-medium" style={{ color: currentThemeStyle.text }}>Reader Width</Label>
+                            <div className="flex gap-2">
+                                {[
+                                    { value: 'narrow', label: 'Narrow' },
+                                    { value: 'normal', label: 'Normal' },
+                                    { value: 'wide', label: 'Wide' },
+                                ].map((width) => (
+                                    <button
+                                        key={width.value}
+                                        onClick={() => updateSettings({ readerWidth: width.value as any })}
+                                        className={`p-3 rounded-lg border text-sm font-medium transition-all ${readerWidth === width.value ? 'shadow-md scale-105' : 'hover:opacity-80'}`}
+                                        style={{
+                                            backgroundColor: readerWidth === width.value ? currentThemeStyle.activeItem : 'transparent',
+                                            color: readerWidth === width.value ? currentThemeStyle.activeText : currentThemeStyle.text,
+                                            borderColor: readerWidth === width.value ? currentThemeStyle.activeItem : currentThemeStyle.border
+                                        }}
+                                    >
+                                        {width.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Words Per Page */}
                         <div className="space-y-3">
                             <div className="flex justify-between">
                                 <Label className="flex items-center gap-2 font-medium" style={{ color: currentThemeStyle.text }}>
-                                    <BookOpen className="w-4 h-4" /> 
+                                    <BookOpen className="w-4 h-4" />
                                     <div>
                                         Words Per Page
                                         <p className="text-xs" style={{ color: currentThemeStyle.text, opacity: 0.7 }}>Set the maximum number of words to display on each page.</p>
@@ -402,7 +432,7 @@ export function ReaderSettings({ open, onOpenChange, onNavigatePage }: { open: b
                         <div className="space-y-3">
                             <div className="flex justify-between">
                                 <Label className="flex items-center gap-2 font-medium" style={{ color: currentThemeStyle.text }}>
-                                    <Music className="w-4 h-4" /> 
+                                    <Music className="w-4 h-4" />
                                     <div>
                                         TTS Speed
                                         <p className="text-xs" style={{ color: currentThemeStyle.text, opacity: 0.7 }}>Adjust the speed of the text-to-speech voice.</p>

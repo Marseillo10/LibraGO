@@ -188,6 +188,7 @@ export const defaultReaderSettings = {
     isContinuousReading: false,
     bookmarks: [],
     highlights: [],
+    readerWidth: 'normal',
 };
 
 const BooksContext = createContext<BooksContextType | undefined>(undefined);

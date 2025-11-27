@@ -12,10 +12,27 @@ import { useBooks, Notification } from "../../context/BooksContext";
 import { EmptyState } from "../EmptyState";
 import { ErrorState } from "../ErrorState";
 import { NotificationSkeleton } from "../skeletons/NotificationSkeleton";
+import { api } from "../../services/api";
 
-const NotificationScreen = () => {
+const getNotificationIcon = (type: string) => {
+    switch (type) {
+        case "achievement":
+            return <Star className="w-5 h-5 text-yellow-500" />;
+        case "book":
+            return <BookOpen className="w-5 h-5 text-green-500" />;
+        case "premium":
+            return <Crown className="w-5 h-5 text-purple-500" />;
+        case "social":
+            return <Users className="w-5 h-5 text-blue-500" />;
+        case "system":
+            return <TrendingUp className="w-5 h-5 text-indigo-500" />;
+        default:
+            return <Bell className="w-5 h-5 text-gray-500" />;
+    }
+};
+
+const NotificationScreen = ({ darkMode }: { darkMode: boolean }) => {
   const {
-    notifications,
     markNotificationRead,
     markAllNotificationsRead,
     clearNotifications,
@@ -28,6 +45,10 @@ const NotificationScreen = () => {
   const [showScrollHint, setShowScrollHint] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const [localNotifications, setLocalNotifications] = useState<Notification[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Check scroll position to show/hide scroll indicators
   const checkScroll = () => {
     const container = scrollContainerRef.current;
@@ -38,10 +59,38 @@ const NotificationScreen = () => {
     setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 10);
   };
 
-  // Hide scroll hint after first scroll or 3 seconds
+  const handleScrollHintDismiss = () => {
+    setShowScrollHint(false);
+  };
+
+  const scrollLeft = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollBy({ left: -200, behavior: 'smooth' });
+  };
+
+  const scrollRight = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    container.scrollBy({ left: 200, behavior: 'smooth' });
+  };
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      setError(null);
+      const fetchedNotifications = await api.getNotifications();
+      setLocalNotifications(fetchedNotifications);
+    } catch (err) {
+      setError("Gagal memuat notifikasi. Silakan coba lagi.");
+      toast.error("Terjadi kesalahan");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => setShowScrollHint(false), 3000);
-    return () => clearTimeout(timer);
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -61,61 +110,14 @@ const NotificationScreen = () => {
     };
   }, []);
 
-  const handleScrollHintDismiss = () => {
-    setShowScrollHint(false);
-  };
-
-  const scrollLeft = () => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollBy({ left: -200, behavior: 'smooth' });
-  };
-
-  const scrollRight = () => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    container.scrollBy({ left: 200, behavior: 'smooth' });
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "book":
-        return <BookOpen className="w-5 h-5 text-blue-600" />;
-      case "achievement":
-        return <Star className="w-5 h-5 text-yellow-500" />;
-      case "premium":
-        return <Crown className="w-5 h-5 text-amber-500" />;
-      case "social":
-        return <Users className="w-5 h-5 text-green-600" />;
-      case "system":
-        return <TrendingUp className="w-5 h-5 text-purple-600" />;
-      default:
-        return <Bell className="w-5 h-5 text-gray-600" />;
-    }
-  };
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Simulate initial loading
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
+    const timer = setTimeout(() => setShowScrollHint(false), 3000);
     return () => clearTimeout(timer);
   }, []);
 
   const handleRefresh = async () => {
-    try {
-      setError(null);
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      // Randomly simulate error for testing
-      if (Math.random() > 0.9) throw new Error("Gagal memuat notifikasi");
-      toast.success('Notifikasi diperbarui');
-    } catch (err) {
-      setError("Gagal memuat notifikasi. Silakan coba lagi.");
-      toast.error("Terjadi kesalahan");
-    }
+    await fetchData();
+    toast.success('Notifikasi diperbarui');
   };
 
   if (error) {
@@ -129,22 +131,22 @@ const NotificationScreen = () => {
     );
   }
 
-  const filteredNotifications = notifications.filter(n => {
+  const filteredNotifications = localNotifications.filter(n => {
     if (activeTab === "all") return true;
     if (activeTab === "unread") return !n.isRead;
     return n.type === activeTab;
   });
 
-  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadCount = localNotifications.filter(n => !n.isRead).length;
   const unreadByType = {
-    book: notifications.filter(n => n.type === "book" && !n.isRead).length,
-    achievement: notifications.filter(n => n.type === "achievement" && !n.isRead).length,
-    premium: notifications.filter(n => n.type === "premium" && !n.isRead).length,
-    social: notifications.filter(n => n.type === "social" && !n.isRead).length,
+    book: localNotifications.filter(n => n.type === "book" && !n.isRead).length,
+    achievement: localNotifications.filter(n => n.type === "achievement" && !n.isRead).length,
+    premium: localNotifications.filter(n => n.type === "premium" && !n.isRead).length,
+    social: localNotifications.filter(n => n.type === "social" && !n.isRead).length,
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
+    <div className={`min-h-screen p-4 md:p-8 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -167,18 +169,18 @@ const NotificationScreen = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={markAllNotificationsRead}
+                onClick={() => markAllNotificationsRead(localNotifications.map(n => n.id))}
                 className="gap-2"
               >
                 <CheckCheck className="w-4 h-4" />
                 <span className="hidden sm:inline">Tandai Semua</span>
               </Button>
             )}
-            {notifications.length > 0 && !isLoading && (
+            {localNotifications.length > 0 && !isLoading && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={clearNotifications}
+                onClick={() => clearNotifications()}
                 className="gap-2 text-red-600 hover:text-red-700"
               >
                 <Trash2 className="w-4 h-4" />

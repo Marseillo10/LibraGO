@@ -75,7 +75,7 @@ export function MobileMenu({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-80 p-0 z-[100]">
+      <SheetContent side="left" className="w-80 p-0 z-[100] bg-white dark:bg-gray-900/95 backdrop-blur-xl border-r border-gray-200 dark:border-gray-800">
         <SheetHeader className="p-6 pb-4">
           <SheetTitle className="text-left">Menu</SheetTitle>
           <SheetDescription className="text-left">

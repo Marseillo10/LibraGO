@@ -44,9 +44,10 @@ export interface ReaderSettings {
     wordsPerPage: number;
     isItalic: boolean;
     isContinuousReading: boolean;
+    readerWidth: 'narrow' | 'normal' | 'wide';
 }
 
-interface ReaderContextType {
+interface ReaderContextType extends ReaderSettings {
 
     // State
 

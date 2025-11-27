@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { useBooks, ReadingGoal } from "../../context/BooksContext";
 
-const ReadingGoalsScreen = () => {
+const ReadingGoalsScreen = ({ darkMode }: { darkMode: boolean }) => {
   const { readingGoals, addGoal, deleteGoal, library } = useBooks();
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -161,7 +161,7 @@ const ReadingGoalsScreen = () => {
   const completedGoals = readingGoals.filter(g => g.status === "completed"); // This status update logic needs to be implemented in context or effect
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
+    <div className={`min-h-screen p-4 md:p-8 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
@@ -263,7 +263,7 @@ const ReadingGoalsScreen = () => {
           <TabsContent value="goals" className="space-y-6">
             {/* Summary Cards */}
             <div className="grid md:grid-cols-3 gap-4">
-              <Card className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <Card className="p-4 bg-gradient-to-br from-blue-500 to-blue-600 text-white dark:from-blue-600 dark:to-blue-700">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm opacity-90">Target Aktif</p>
                   <Target className="w-5 h-5" />
@@ -271,7 +271,7 @@ const ReadingGoalsScreen = () => {
                 <p className="text-3xl">{activeGoals.length}</p>
               </Card>
 
-              <Card className="p-4 bg-gradient-to-br from-green-500 to-green-600 text-white">
+              <Card className="p-4 bg-gradient-to-br from-green-500 to-green-600 text-white dark:from-green-600 dark:to-green-700">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm opacity-90">Target Tercapai</p>
                   <Check className="w-5 h-5" />
@@ -279,7 +279,7 @@ const ReadingGoalsScreen = () => {
                 <p className="text-3xl">{completedGoals.length}</p>
               </Card>
 
-              <Card className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+              <Card className="p-4 bg-gradient-to-br from-purple-500 to-purple-600 text-white dark:from-purple-600 dark:to-purple-700">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm opacity-90">Progress Rata-rata</p>
                   <TrendingUp className="w-5 h-5" />
@@ -302,7 +302,7 @@ const ReadingGoalsScreen = () => {
                 const daysLeft = getDaysRemaining(goal.endDate);
 
                 return (
-                  <Card key={goal.id} className="p-6">
+                  <Card key={goal.id} className="p-6 bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <h4 className="text-gray-900 dark:text-white mb-2 truncate">{goal.title}</h4>
@@ -349,7 +349,7 @@ const ReadingGoalsScreen = () => {
               })}
 
               {activeGoals.length === 0 && (
-                <Card className="p-12 text-center">
+                <Card className="p-12 text-center bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                   <Target className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
                   <h3 className="text-gray-900 dark:text-white mb-2">
                     Belum Ada Target
@@ -369,7 +369,7 @@ const ReadingGoalsScreen = () => {
           <TabsContent value="challenges">
             <div className="grid md:grid-cols-2 gap-4">
               {challenges.map((challenge) => (
-                <Card key={challenge.id} className="p-6">
+                <Card key={challenge.id} className="p-6 bg-white dark:bg-gray-900/80 backdrop-blur-md border-gray-200 dark:border-gray-800">
                   <div className="flex items-start gap-4 mb-4">
                     <div className="text-4xl">{challenge.icon}</div>
                     <div className="flex-1">

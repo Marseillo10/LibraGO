@@ -232,7 +232,7 @@ export function ProfileScreen({
     <>
       <MobileScreenWrapper title="Profil Saya">
         <PullToRefresh onRefresh={handleRefresh}>
-          <div className={`min-h-screen pb-20 lg:pb-8 transition-colors duration-300 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-slate-50 to-blue-50"}`}>
+          <div className={`min-h-screen pb-20 lg:pb-8 transition-colors duration-300 ${darkMode ? "bg-none bg-transparent" : "bg-gradient-to-br from-slate-50 to-blue-50"}`}>
             <div className="px-4 md:px-6 py-6 md:py-8 lg:px-12">
               <div className="max-w-4xl mx-auto">
                 {/* Header */}

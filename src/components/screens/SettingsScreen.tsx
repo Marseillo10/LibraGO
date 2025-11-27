@@ -95,7 +95,7 @@ const SettingsScreen = ({
   };
 
   return (
-    <div className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
+    <div className={`min-h-screen p-4 md:p-8 transition-colors duration-300 ${darkMode ? "bg-none bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">

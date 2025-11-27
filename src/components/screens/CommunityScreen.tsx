@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState, useEffect } from "react";
 import { Users, MessageSquare, BookOpen, Heart, Share2, TrendingUp, Award, Plus } from "lucide-react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -12,101 +12,30 @@ import { PullToRefresh } from "../PullToRefresh";
 import { EmptyState } from "../EmptyState";
 import { ErrorState } from "../ErrorState";
 import { CommunitySkeleton } from "../skeletons/CommunitySkeleton";
+import { api } from "../../services/api";
 
-const CommunityScreen = () => {
+const CommunityScreen = ({ darkMode }: { darkMode: boolean }) => {
   const { trendingBooks } = useBooks();
   const [activeTab, setActiveTab] = useState("feed");
+  const [activityFeed, setActivityFeed] = useState<any[]>([]);
+  const [bookClubs, setBookClubs] = useState<any[]>([]);
+  const [challenges, setChallenges] = useState<any[]>([]);
+  const [suggestedUsers, setSuggestedUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const activityFeed = [
-    {
-      id: "1",
-      user: { name: "Ahmad R.", avatar: "AR", isPremium: true },
-      action: "selesai membaca",
-      book: "Clean Code",
-      timeAgo: "2 jam lalu",
-      likes: 24,
-      comments: 5,
-      hasLiked: false,
-    },
-    {
-      id: "2",
-      user: { name: "Siti M.", avatar: "SM", isPremium: false },
-      action: "memberikan rating 5⭐ untuk",
-      book: "Design Patterns",
-      timeAgo: "5 jam lalu",
-      likes: 12,
-      comments: 3,
-      hasLiked: true,
-    },
-    {
-      id: "3",
-      user: { name: "Budi S.", avatar: "BS", isPremium: true },
-      action: "mencapai reading streak 30 hari",
-      timeAgo: "1 hari lalu",
-      likes: 56,
-      comments: 12,
-      hasLiked: false,
-    },
-  ];
+  const fetchData = async () => {
+    setIsLoading(true);
+    const communityData = await api.getCommunityData();
+    setActivityFeed(communityData.activityFeed);
+    setBookClubs(communityData.bookClubs);
+    setChallenges(communityData.challenges);
+    setSuggestedUsers(communityData.suggestedUsers);
+    setIsLoading(false);
+  };
 
-  const bookClubs = [
-    {
-      id: "1",
-      name: "Programming Excellence",
-      members: 1247,
-      books: 45,
-      description: "Diskusi seputar programming, software engineering, dan best practices",
-      icon: "💻",
-      isJoined: true,
-    },
-    {
-      id: "2",
-      name: "Design Thinking",
-      members: 856,
-      books: 32,
-      description: "Belajar design, UX/UI, dan creative problem solving",
-      icon: "🎨",
-      isJoined: false,
-    },
-    {
-      id: "3",
-      name: "Leadership & Management",
-      members: 642,
-      books: 28,
-      description: "Mengembangkan skill kepemimpinan dan manajemen tim",
-      icon: "👑",
-      isJoined: false,
-    },
-  ];
-
-  const challenges = [
-    {
-      id: "1",
-      title: "Oktober Reading Challenge",
-      description: "Baca 5 buku di bulan Oktober",
-      participants: 234,
-      progress: 3,
-      target: 5,
-      endsIn: "2 hari",
-      reward: "Badge: October Reader",
-    },
-    {
-      id: "2",
-      title: "Genre Explorer",
-      description: "Baca buku dari 5 genre berbeda",
-      participants: 189,
-      progress: 2,
-      target: 5,
-      endsIn: "15 hari",
-      reward: "Badge: Genre Master",
-    },
-  ];
-
-  const suggestedUsers = [
-    { name: "Diana P.", avatar: "DP", books: 47, followers: 234, isFollowing: false },
-    { name: "Eko W.", avatar: "EW", books: 62, followers: 456, isFollowing: false },
-    { name: "Fira K.", avatar: "FK", books: 38, followers: 189, isFollowing: true },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleLike = (id: string) => {
     toast.success("Post disukai");
@@ -121,12 +50,16 @@ const CommunityScreen = () => {
   };
 
   const handleRefresh = async () => {
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await fetchData();
     toast.success('Feed diperbarui');
   };
 
+  if (isLoading) {
+    return <CommunitySkeleton darkMode={darkMode} />;
+  }
+
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
+    <PullToRefresh onRefresh={handleRefresh} className={`min-h-screen p-4 md:p-8 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

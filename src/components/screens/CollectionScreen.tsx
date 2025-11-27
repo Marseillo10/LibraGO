@@ -24,7 +24,7 @@ interface CollectionScreenProps {
 }
 
 export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionScreenProps) {
-  const { library, removeFromLibrary, toggleFavorite, collectionScroll, setCollectionScroll, collectionActiveTab, setCollectionActiveTab } = useBooks();
+  const { library, removeFromLibrary, toggleFavorite, collectionScroll, setCollectionScroll, collectionActiveTab, setCollectionActiveTab, syncLibrary } = useBooks();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const tabsContainerRef = useRef<HTMLDivElement>(null);
@@ -162,14 +162,10 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
   const handleRefresh = async () => {
     try {
       setError(null);
-      // Simulate refresh since library is local
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      // Randomly simulate error for testing
-      if (Math.random() > 0.9) throw new Error("Gagal memuat koleksi");
-      toast.success('Koleksi diperbarui');
+      await syncLibrary();
     } catch (err) {
-      setError("Gagal memuat koleksi. Silakan coba lagi.");
-      toast.error("Terjadi kesalahan");
+      setError("Gagal menyinkronkan koleksi. Silakan coba lagi.");
+      toast.error("Terjadi kesalahan saat sinkronisasi");
     }
   };
 
@@ -187,7 +183,7 @@ export function CollectionScreen({ onSelectBook, darkMode = false }: CollectionS
   return (
     <PullToRefresh onRefresh={handleRefresh} className={`min-h-screen pb-20 lg:pb-8 transition-colors duration-300 ${darkMode ? "bg-transparent" : "bg-white"}`}>
       {/* Sticky Header */}
-      <div className={`sticky top-0 z-30 border-b shadow-sm transition-colors duration-300 ${darkMode ? "bg-gray-900 border-gray-800" : "bg-white border-gray-200"}`}>
+      <div className={`sticky top-0 z-30 border-b shadow-sm transition-colors duration-300 ${darkMode ? "bg-gray-900/80 backdrop-blur-md border-gray-800" : "bg-white border-gray-200"}`}>
         <div className="px-6 py-6 lg:px-12">
           <div className="max-w-6xl mx-auto">
             <h1 className="text-gray-900 dark:text-white mb-2">

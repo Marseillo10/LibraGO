@@ -52,9 +52,11 @@
             "recharts": "^2.15.2",
             "sonner": "^2.0.3",
             "tailwind-merge": "*",
-            "vaul": "^1.1.2"
+            "vaul": "^1.1.2",
+            "vitest": "^4.0.14"
       },
       "devDependencies": {
+            "@testing-library/jest-dom": "^6.9.1",
             "@types/node": "^20.10.0",
             "@types/react": "^19.2.6",
             "@types/react-dom": "^19.2.3",
@@ -63,6 +65,7 @@
       },
       "scripts": {
             "dev": "vite",
-            "build": "vite build"
+            "build": "vite build",
+            "test": "vitest"
       }
 }

@@ -17,7 +17,7 @@ interface FAQItem {
   answer: string;
 }
 
-const HelpScreen = () => {
+const HelpScreen = ({ darkMode }: { darkMode: boolean }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [supportForm, setSupportForm] = useState({
     subject: "",
@@ -131,7 +131,7 @@ const HelpScreen = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:bg-background p-4 md:p-8">
+    <div className={`min-h-screen p-4 md:p-8 ${darkMode ? "bg-transparent" : "bg-gradient-to-br from-blue-50 via-white to-purple-50"}`}>
       <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">

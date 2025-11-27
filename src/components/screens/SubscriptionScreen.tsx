@@ -14,7 +14,7 @@ interface SubscriptionScreenProps {
   onSubscribe: () => void;
 }
 
-export function SubscriptionScreen({ onBack, onSubscribe }: SubscriptionScreenProps) {
+export function SubscriptionScreen({ onBack, onSubscribe, darkMode }: { onBack: () => void; onSubscribe: () => void; darkMode: boolean }) {
   const { updateProfile, userProfile } = useBooks();
   const [selectedPlan, setSelectedPlan] = useState("yearly");
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -111,7 +111,7 @@ export function SubscriptionScreen({ onBack, onSubscribe }: SubscriptionScreenPr
   const selectedPlanDetails = plans.find(p => p.id === selectedPlan);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-white dark:bg-background">
+    <div className={`min-h-screen relative overflow-hidden ${darkMode ? "bg-transparent" : "bg-white"}`}>
       {/* ... (Background and Header remain same) ... */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"

@@ -102,8 +102,15 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
     wordsPerPage,
     isItalic,
     ttsVoice,
-    isContinuousReading
+    isContinuousReading,
+    readerWidth,
   } = readerSettings;
+
+  const maxWidthClass = {
+    narrow: "max-w-2xl",
+    normal: "max-w-4xl",
+    wide: "max-w-7xl",
+  }[readerWidth];
 
   const [currentPage, setCurrentPage] = useState(1);
   const [bookContent, setBookContent] = useState<BookContent | null>(null);
@@ -133,28 +140,28 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
 
   const handleSocialShare = async () => {
     if (navigator.share) {
-        await navigator.share({
-            title: `Check out this book: ${currentBook?.title}`,
-            text: `I'm reading "${currentBook?.title}" by ${currentBook?.author}. Check it out!`,
-            url: window.location.href,
-        });
-        toast.success("Shared successfully!");
+      await navigator.share({
+        title: `Check out this book: ${currentBook?.title}`,
+        text: `I'm reading "${currentBook?.title}" by ${currentBook?.author}. Check it out!`,
+        url: window.location.href,
+      });
+      toast.success("Shared successfully!");
     } else {
-        handleCopyLink();
+      handleCopyLink();
     }
   };
 
   React.useEffect(() => {
     const getVoices = () => {
-        const availableVoices = window.speechSynthesis.getVoices();
-        if (availableVoices.length > 0) {
-            setVoices(availableVoices);
-        }
+      const availableVoices = window.speechSynthesis.getVoices();
+      if (availableVoices.length > 0) {
+        setVoices(availableVoices);
+      }
     };
 
     getVoices();
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = getVoices;
+      window.speechSynthesis.onvoiceschanged = getVoices;
     }
   }, []);
 
@@ -431,7 +438,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
       setIsAutoPlaying(false);
     }
   }, [pageText, isAutoPlaying]);
-  
+
   // Stop TTS on unmount
   useEffect(() => () => window.speechSynthesis.cancel(), []);
 
@@ -558,7 +565,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
       };
     }
     return {
-        backgroundColor: currentTheme.headerBgHex,
+      backgroundColor: currentTheme.headerBgHex,
     };
   };
 
@@ -566,8 +573,8 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
 
   return (
     <div
-        className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'dark' : ''}`}
-        style={getMainBackground()}
+      className={`min-h-screen flex flex-col transition-colors duration-300 ${isDarkMode ? 'dark' : ''}`}
+      style={getMainBackground()}
     >
       <style>{`
         @keyframes subtle-pan {
@@ -655,8 +662,8 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
       >
         {/* Watermark Overlay */}
         {contentProtection && (
-          <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.05]">
-            {[...Array(12)].map((_, i) => (
+          <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]">
+            {[...Array(6)].map((_, i) => (
               <div
                 key={i}
                 className="absolute whitespace-nowrap text-xs font-bold select-none"
@@ -677,15 +684,13 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
         <div
           className={`
             h-full w-full px-4 md:px-8 py-8 mx-auto ${maxWidthClass}
-            ${
-              backgroundEffects && isDarkMode
-                ? 'text-white text-glow'
-                : currentTheme.text
+            ${backgroundEffects && isDarkMode
+              ? 'text-white text-glow font-medium'
+              : currentTheme.text
             }
-            ${
-              readingMode === 'paginated'
-                ? 'overflow-x-auto'
-                : 'overflow-y-auto'
+            ${readingMode === 'paginated'
+              ? 'overflow-x-auto'
+              : 'overflow-y-auto'
             }
           `}
           style={{
