@@ -655,7 +655,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
       >
         {/* Watermark Overlay */}
         {contentProtection && (
-          <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.03]">
+          <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden opacity-[0.05]">
             {[...Array(12)].map((_, i) => (
               <div
                 key={i}
@@ -664,7 +664,7 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
                   transform: 'rotate(-45deg)',
                   top: `${Math.random() * 100}%`,
                   left: `${Math.random() * 100}%`,
-                  color: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.2)'
+                  color: 'white',
                 }}
               >
                 {watermark}
@@ -676,17 +676,25 @@ function EnhancedReaderContent({ onBack, onNavigate, userName, userEmail, darkMo
         {/* Reader Content */}
         <div
           className={`
-            h-full w-full px-4 md:px-8 py-8 mx-auto max-w-4xl
-            ${backgroundEffects && isDarkMode ? 'text-white' : currentTheme.text}
-            ${readingMode === 'paginated' ? 'overflow-x-auto' : 'overflow-y-auto'}
+            h-full w-full px-4 md:px-8 py-8 mx-auto ${maxWidthClass}
+            ${
+              backgroundEffects && isDarkMode
+                ? 'text-white'
+                : currentTheme.text
+            }
+            ${
+              readingMode === 'paginated'
+                ? 'overflow-x-auto'
+                : 'overflow-y-auto'
+            }
           `}
           style={{
             fontSize: `${fontSize}px`,
             lineHeight: lineHeight,
-            filter: `brightness(${brightness}%)`,
             fontFamily: fontMap[fontFamily] || 'sans-serif',
             textAlign: textAlign,
             fontStyle: isItalic ? 'italic' : 'normal',
+            textShadow: backgroundEffects && isDarkMode ? '0 0 8px rgba(255, 255, 255, 0.8)' : 'none',
           }}
           onMouseUp={() => {
             if (!contentProtection) {
