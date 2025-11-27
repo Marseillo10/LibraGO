@@ -6683,7 +6683,7 @@ html {
   background-image: url('/dark-bg.png');
   background-size: cover;
   background-position: center;
-  opacity: 1;
+  opacity: 0.4;
   animation: subtle-pan 60s ease-in-out infinite alternate;
   pointer-events: none;
 }
